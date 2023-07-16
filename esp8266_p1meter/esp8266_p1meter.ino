@@ -701,7 +701,6 @@ void loop()
 {
     ArduinoOTA.handle();
     long now = millis();
-
     if (!mqtt_client.connected())
     {
         if (now - LAST_RECONNECT_ATTEMPT > 5000)
