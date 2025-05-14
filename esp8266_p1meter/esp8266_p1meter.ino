@@ -245,19 +245,29 @@ long getValue(char *buffer, int maxlen, char startchar, char endchar)
 
 bool decode_telegram(int len)
 {
-    int startChar = FindCharInArrayRev(telegram, '/', len);
-    int endChar = FindCharInArrayRev(telegram, '!', len);
+    //Serial.println("decode_telegram");
+	
+	int startChar = FindCharInArrayRev(telegram, '/', len);		// eerste character van de eerste verzending uit de informatietrein
+    int endChar = FindCharInArrayRev(telegram, '!', len);		// eerste character van de laatste verzending uit de informatietrein
     bool validCRCFound = false;
 
-    for (int cnt = 0; cnt < len; cnt++) {
+/* 	Serial.print("  startChar: ");
+	Serial.println(startChar);
+	Serial.print("  endChar: ");
+	Serial.println(endChar);
+	Serial.print("  print telegram per char: "); */
+
+/*     for (int cnt = 0; cnt < len; cnt++) {
         Serial.print(telegram[cnt]);
     }
-    Serial.print("\n");
+    Serial.print("\n"); */
 
     if (startChar >= 0)
     {
         // * Start found. Reset CRC calculation
         currentCRC = CRC16(0x0000,(unsigned char *) telegram+startChar, len-startChar);
+		//Serial.print("    first line; CRC: ");
+		//Serial.println(currentCRC);
     }
     else if (endChar >= 0)
     {
@@ -269,6 +279,9 @@ bool decode_telegram(int len)
 
         messageCRC[4] = 0;   // * Thanks to HarmOtten (issue 5)
         validCRCFound = (strtol(messageCRC, NULL, 16) == currentCRC);
+		
+		//Serial.print("    last line; CRC: ");
+		//Serial.println(currentCRC);
 
         if (validCRCFound)
             Serial.println(F("CRC Valid!"));
@@ -280,13 +293,18 @@ bool decode_telegram(int len)
     else
     {
         currentCRC = CRC16(currentCRC, (unsigned char*) telegram, len);
+		//Serial.print("    other line; CRC: ");
+		//Serial.println(currentCRC);
     }
 
     // 1-0:1.8.1(000992.992*kWh)
     // 1-0:1.8.1 = Elektra verbruik laag tarief (DSMR v4.0)
     if (strncmp(telegram, "1-0:1.8.1", strlen("1-0:1.8.1")) == 0)
     {
-        CONSUMPTION_LOW_TARIF = getValue(telegram, len, '(', '*');
+        
+		CONSUMPTION_LOW_TARIF = getValue(telegram, len, '(', '*');
+		//Serial.print("  CONSUMPTION_LOW_TARIF: ");
+		//Serial.println(CONSUMPTION_LOW_TARIF);
     }
 
     // 1-0:1.8.2(000560.157*kWh)
@@ -433,31 +451,52 @@ bool decode_telegram(int len)
     }
 
     return validCRCFound;
+	///return true;
 }
 
 void read_p1_hardwareserial()
 {
     if (Serial.available())
-    {
-        memset(telegram, 0, sizeof(telegram));
-
-        while (Serial.available())
+	{
+        //Serial.println("Serial.available");
+		
+		memset(telegram, 0, sizeof(telegram));
+		
+		//Serial.print("telegram value: ");
+		//Serial.println(telegram);
+		int counter = 1;
+        
+		while (Serial.available())
         {
-            ESP.wdtDisable();
+            //Serial.print("Serial.available loop: ");
+			//Serial.println(counter);
+			counter++;
+			
+			ESP.wdtDisable();			//watchdog disable, geen idee waarom
             int len = Serial.readBytesUntil('\n', telegram, P1_MAXLINELENGTH);
             ESP.wdtEnable(1);
-
-            processLine(len);
+			
+			//Serial.print("gelezen bytes: ");
+			//Serial.println(len);
+			//Serial.print("telegram value: ");
+			//Serial.println(telegram);
+            
+			processLine(len);
         }
     }
 }
 
 void processLine(int len) {
-    telegram[len] = '\n';
+    //Serial.print("ProcessLine length: ");
+	//Serial.println(len);
+	
+	telegram[len] = '\n';
     telegram[len + 1] = 0;
-    yield();
+    yield();		// ook iets te maken met de hardware watchdog.
 
     bool result = decode_telegram(len + 1);
+
+
     if (result) {
         if (LAST_GAS_METER_M3 > 0) {
             if (GAS_METER_M3 > LAST_GAS_METER_M3) {
@@ -470,6 +509,7 @@ void processLine(int len) {
         send_data_to_broker();
         LAST_UPDATE_SENT = millis();
     }
+
 }
 
 // **********************************
@@ -719,6 +759,10 @@ void loop()
     }
     
     if (now - LAST_UPDATE_SENT > UPDATE_INTERVAL) {
-        read_p1_hardwareserial();
+		//Serial.println("loop start");
+		//Serial.println(now);
+		//Serial.println(LAST_UPDATE_SENT);
+
+		read_p1_hardwareserial();
     }
 }
