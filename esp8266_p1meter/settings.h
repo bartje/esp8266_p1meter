@@ -71,6 +71,7 @@ long L3_INSTANT_POWER_CURRENT;
 long L1_VOLTAGE;
 long L2_VOLTAGE;
 long L3_VOLTAGE;
+long QUARTER_PEAK;
 
 // Set to store data counters read
 long ACTUAL_TARIF;
