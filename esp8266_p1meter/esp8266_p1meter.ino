@@ -286,7 +286,8 @@ bool decode_telegram(int len)
         if (validCRCFound)
             Serial.println(F("CRC Valid!"));
         else
-            Serial.println(F("CRC Invalid!"));
+            Serial.println(currentCRC);
+			Serial.println(F("CRC Invalid!"));
 
         currentCRC = 0;
     }
@@ -471,6 +472,7 @@ void read_p1_hardwareserial()
             //Serial.print("Serial.available loop: ");
 			//Serial.println(counter);
 			counter++;
+			tick();
 			
 			ESP.wdtDisable();			//watchdog disable, geen idee waarom
             int len = Serial.readBytesUntil('\n', telegram, P1_MAXLINELENGTH);
@@ -637,7 +639,7 @@ void setup()
     Serial.flush();
 
     // Invert the RX serialport by setting a register value, this way the TX might continue normally allowing the serial monitor to read println's
-    USC0(UART0) = USC0(UART0) | BIT(UCRXI);
+    //////USC0(UART0) = USC0(UART0) | BIT(UCRXI);
     Serial.println("Serial port is ready to recieve.");
 
     // * Set led pin as output
