@@ -35,6 +35,9 @@
 // * Belgian meters have flipped high and low tarif codes, this variable allows you to flip
 #define FLIPHIGHLOWTARIF true
 
+// * moet er gelogd worden
+#define log_telegrams false
+
 // * MQTT Last reconnection counter
 long LAST_RECONNECT_ATTEMPT = 0;
 
@@ -48,6 +51,7 @@ char MQTT_PASS[32] = "";
 
 // * Set to store received telegram
 char telegram[P1_MAXLINELENGTH];
+char complete_telegram[10*P1_MAXLINELENGTH];
 
 // * Set to store the data values read
 struct timestampData{
@@ -55,6 +59,8 @@ struct timestampData{
 	bool zomeruur;
 };
 timestampData TIMESTAMP;
+
+long total_len;
 
 struct timedValue{
 	timestampData timestamp;

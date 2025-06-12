@@ -457,8 +457,9 @@ bool decode_telegram(int len)
         messageCRC[4] = 0;   // * Thanks to HarmOtten (issue 5)
         validCRCFound = (strtol(messageCRC, NULL, 16) == currentCRC);
 		
-		//Serial.print("    last line; CRC: ");
-		//Serial.println(currentCRC);
+		// #########**************** test
+		Serial.print("    last line; CRC: ");
+		Serial.println(currentCRC);
 
         if (validCRCFound)
             Serial.println(F("CRC Valid!"));
@@ -717,7 +718,11 @@ bool decode_telegram(int len)
 
 void read_p1_hardwareserial()
 {
-    if (Serial.available())
+	if (log_telegrams){
+		memset(complete_telegram, 0, sizeof(complete_telegram));
+		//total_len = 0;
+	}
+	if (Serial.available())
 	{
         //Serial.println("Serial.available");
 		
@@ -725,7 +730,7 @@ void read_p1_hardwareserial()
 		
 		//Serial.print("telegram value: ");
 		//Serial.println(telegram);
-		int counter = 1;
+		int counter = 0;
         
 		while (Serial.available())
         {
@@ -742,8 +747,30 @@ void read_p1_hardwareserial()
 			//Serial.print("telegram value: ");
 			//Serial.println(telegram);
             
+			// voeg de telegram toe aan complete_telegram
+			if (log_telegrams){
+				//total_len += len;
+				char message[len+1];
+        		strncpy(message, telegram, len+1);
+				//strcpy (complete_telegram,telegram);
+				strcat(complete_telegram,message);
+				//Serial.print("Temp_telegram value: ");
+				//Serial.println(complete_telegram);
+				//Serial.print("C: ");
+				//Serial.println(counter);
+
+			}
+			
+  		
+
 			processLine(len);
         }
+		if (log_telegrams){
+			Serial.print("C: ");
+			Serial.println(counter);
+			Serial.print("Complete_telegram value: ");
+			Serial.println(complete_telegram);
+		}
     }
 }
 
@@ -901,7 +928,8 @@ void setup()
     Serial.flush();
 
     // Invert the RX serialport by setting a register value, this way the TX might continue normally allowing the serial monitor to read println's
-    USC0(UART0) = USC0(UART0) | BIT(UCRXI);
+	//// testing
+	/////////USC0(UART0) = USC0(UART0) | BIT(UCRXI);
     Serial.println("Serial port is ready to recieve.");
 
     // * Set led pin as output
