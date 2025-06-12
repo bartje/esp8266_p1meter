@@ -450,13 +450,6 @@ bool decode_telegram(int len)
         SHORT_POWER_PEAKS = getValue(telegram, len, '(', ')');
     }
 
-	// 1-0:1.4.0(00.378*kW)
-    // 1-0:1.4.0 = kwartierpiek
-    if (strncmp(telegram, "1-0:1.4.0", strlen("1-0:1.4.0")) == 0)
-    {
-        QUARTER_PEAK = getValue(telegram, len, '(', '*');
-    }
-
     return validCRCFound;
 	///return true;
 }
