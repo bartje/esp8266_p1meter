@@ -458,8 +458,8 @@ bool decode_telegram(int len)
         validCRCFound = (strtol(messageCRC, NULL, 16) == currentCRC);
 		
 		// #########**************** test
-		Serial.print("    last line; CRC: ");
-		Serial.println(currentCRC);
+		//Serial.print("    last line; CRC: ");
+		//Serial.println(currentCRC);
 
         if (validCRCFound)
             Serial.println(F("CRC Valid!"));
@@ -716,62 +716,34 @@ bool decode_telegram(int len)
 	///return true;
 }
 
+void log_p1_hardwareserial(){
+	if(Serial.available()){
+		while(Serial.available()){
+			String a;
+			a = Serial.readString();
+			Serial.println("*** START Telegram ***");
+			Serial.println(a);
+			Serial.println("**** END Telegram ****");
+		}
+	}
+}
+
 void read_p1_hardwareserial()
 {
-	if (log_telegrams){
-		memset(complete_telegram, 0, sizeof(complete_telegram));
-		//total_len = 0;
-	}
+	
 	if (Serial.available())
-	{
-        //Serial.println("Serial.available");
-		
+	{	
 		memset(telegram, 0, sizeof(telegram));
-		
-		//Serial.print("telegram value: ");
-		//Serial.println(telegram);
-		int counter = 0;
-        
+
 		while (Serial.available())
-        {
-            //Serial.print("Serial.available loop: ");
-			//Serial.println(counter);
-			counter++;
-			
+        {	
 			ESP.wdtDisable();			//watchdog disable, geen idee waarom
             int len = Serial.readBytesUntil('\n', telegram, P1_MAXLINELENGTH);
             ESP.wdtEnable(1);
-			
-			//Serial.print("gelezen bytes: ");
-			//Serial.println(len);
-			//Serial.print("telegram value: ");
-			//Serial.println(telegram);
-            
-			// voeg de telegram toe aan complete_telegram
-			if (log_telegrams){
-				//total_len += len;
-				char message[len+2];
-        		strncpy(message, telegram, len+1);
-				//strcpy (complete_telegram,telegram);
-				strcat(complete_telegram,message);
-				//Serial.print("Temp_telegram value: ");
-				//Serial.println(complete_telegram);
-				//Serial.print("C: ");
-				//Serial.println(counter);
-
-			}
-			
-  		
 
 			processLine(len);
         }
-		if (log_telegrams){
-			Serial.print("C: ");
-			Serial.println(counter);
-			Serial.print("Complete_telegram value: ");
-			Serial.println(complete_telegram);
-		}
-    }
+	}
 }
 
 void processLine(int len) {
@@ -1050,11 +1022,13 @@ void loop()
         mqtt_client.loop();
     }
     
-    if (now - LAST_UPDATE_SENT > UPDATE_INTERVAL) {
+    if (true && (now - LAST_UPDATE_SENT > UPDATE_INTERVAL)) {
 		//Serial.println("loop start");
 		//Serial.println(now);
 		//Serial.println(LAST_UPDATE_SENT);
 
 		read_p1_hardwareserial();
-    }
+    //} else if(log_telegrams) {
+	//	log_p1_hardwareserial();
+	}
 }

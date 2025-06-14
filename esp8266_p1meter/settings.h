@@ -51,7 +51,6 @@ char MQTT_PASS[32] = "";
 
 // * Set to store received telegram
 char telegram[P1_MAXLINELENGTH];
-char complete_telegram[10*P1_MAXLINELENGTH];
 
 // * Set to store the data values read
 struct timestampData{
