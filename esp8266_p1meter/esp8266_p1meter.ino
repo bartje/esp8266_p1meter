@@ -750,7 +750,7 @@ void read_p1_hardwareserial()
 			// voeg de telegram toe aan complete_telegram
 			if (log_telegrams){
 				//total_len += len;
-				char message[len+1];
+				char message[len+2];
         		strncpy(message, telegram, len+1);
 				//strcpy (complete_telegram,telegram);
 				strcat(complete_telegram,message);
