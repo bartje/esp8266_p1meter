@@ -50,6 +50,22 @@ char MQTT_PASS[32] = "";
 char telegram[P1_MAXLINELENGTH];
 
 // * Set to store the data values read
+struct timestampData{
+	long long timestamp;
+	bool zomeruur;
+};
+timestampData TIMESTAMP;
+
+struct timedValue{
+	timestampData timestamp;
+	float value;
+};
+timedValue QUARTER_PEAK_CURRENT_MONTH;
+timedValue GAS_METER_M3;
+timedValue WATER_METER_M3;
+
+
+// * Set to store the data values read
 long CONSUMPTION_LOW_TARIF;
 long CONSUMPTION_HIGH_TARIF;
 
@@ -58,19 +74,26 @@ long RETURNDELIVERY_HIGH_TARIF;
 
 long ACTUAL_CONSUMPTION;
 long ACTUAL_RETURNDELIVERY;
-long GAS_METER_M3;
-long ACTUAL_CONSUMPTION_GAS_M3;
-long LAST_GAS_METER_M3;
+//long GAS_METER_M3;
+//long ACTUAL_CONSUMPTION_GAS_M3;
+//long LAST_GAS_METER_M3;
 
 long L1_INSTANT_POWER_USAGE;
 long L2_INSTANT_POWER_USAGE;
 long L3_INSTANT_POWER_USAGE;
+long L1_INSTANT_POWER_PRODUCTION;
+long L2_INSTANT_POWER_PRODUCTION;
+long L3_INSTANT_POWER_PRODUCTION;
+
+
 long L1_INSTANT_POWER_CURRENT;
 long L2_INSTANT_POWER_CURRENT;
 long L3_INSTANT_POWER_CURRENT;
 long L1_VOLTAGE;
 long L2_VOLTAGE;
 long L3_VOLTAGE;
+
+long QUARTER_VALUE;
 
 // Set to store data counters read
 long ACTUAL_TARIF;

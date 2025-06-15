@@ -8,12 +8,16 @@
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
 #include <PubSubClient.h>
+#include <DateTimeFunctions.h>
 
 // * Include settings
 #include "settings.h"
 
 // * Initiate led blinker library
 Ticker ticker;
+
+// * Set The Class Object Name
+DateTimeFunctions dTF;
 
 // * Initiate WIFI client
 WiFiClient espClient;
@@ -123,8 +127,8 @@ void send_metric(String name, long metric)
     char output[10];
     ltoa(metric, output, sizeof(output));
 
-    String topic = String(MQTT_ROOT_TOPIC) + "/" + name;
-    send_mqtt_message(topic.c_str(), output);
+    //String topic = String(MQTT_ROOT_TOPIC) + "/" + name;
+    //send_mqtt_message(topic.c_str(), output);
 }
 
 void send_data_to_broker()
@@ -149,25 +153,62 @@ void send_data_to_broker()
 
     send_metric("actual_consumption", ACTUAL_CONSUMPTION);
     send_metric("actual_returndelivery", ACTUAL_RETURNDELIVERY);
+	send_metric("timestamp", epochUTC(TIMESTAMP.timestamp, TIMESTAMP.zomeruur));
 
-    send_metric("l1_instant_power_usage", L1_INSTANT_POWER_USAGE);
-    send_metric("l2_instant_power_usage", L2_INSTANT_POWER_USAGE);
-    send_metric("l3_instant_power_usage", L3_INSTANT_POWER_USAGE);
-    send_metric("l1_instant_power_current", L1_INSTANT_POWER_CURRENT);
-    send_metric("l2_instant_power_current", L2_INSTANT_POWER_CURRENT);
-    send_metric("l3_instant_power_current", L3_INSTANT_POWER_CURRENT);
-    send_metric("l1_voltage", L1_VOLTAGE);
-    send_metric("l2_voltage", L2_VOLTAGE);
-    send_metric("l3_voltage", L3_VOLTAGE);
+    // send_metric("l1_instant_power_usage", L1_INSTANT_POWER_USAGE);
+    // send_metric("l2_instant_power_usage", L2_INSTANT_POWER_USAGE);
+    // send_metric("l3_instant_power_usage", L3_INSTANT_POWER_USAGE);
+    // send_metric("l1_instant_power_current", L1_INSTANT_POWER_CURRENT);
+    // send_metric("l2_instant_power_current", L2_INSTANT_POWER_CURRENT);
+    // send_metric("l3_instant_power_current", L3_INSTANT_POWER_CURRENT);
+    // send_metric("l1_voltage", L1_VOLTAGE);
+    // send_metric("l2_voltage", L2_VOLTAGE);
+    // send_metric("l3_voltage", L3_VOLTAGE);
     
-    send_metric("gas_meter_m3", GAS_METER_M3);
-    send_metric("actual_consumption_gas_m3", ACTUAL_CONSUMPTION_GAS_M3);
+	send_metric("gas_meter_m3 timestamp", epochUTC(GAS_METER_M3.timestamp.timestamp, GAS_METER_M3.timestamp.zomeruur));
+    send_metric("gas_meter_m3 waarde", GAS_METER_M3.value);
+    //send_metric("actual_consumption_gas_m3", ACTUAL_CONSUMPTION_GAS_M3);
 
     send_metric("actual_tarif_group", ACTUAL_TARIF);
-    send_metric("short_power_outages", SHORT_POWER_OUTAGES);
-    send_metric("long_power_outages", LONG_POWER_OUTAGES);
-    send_metric("short_power_drops", SHORT_POWER_DROPS);
-    send_metric("short_power_peaks", SHORT_POWER_PEAKS);
+    //send_metric("short_power_outages", SHORT_POWER_OUTAGES);
+    //send_metric("long_power_outages", LONG_POWER_OUTAGES);
+    //send_metric("short_power_drops", SHORT_POWER_DROPS);
+    //send_metric("short_power_peaks", SHORT_POWER_PEAKS);
+}
+
+long epochUTC(long long date, bool summerTime) {
+	// Convert date time to unix time.  
+		// uint32_t conDT2UT(const uint8_t _DAY, const uint8_t _MONTH, const uint16_t _YEAR, const uint8_t _HOUR, const uint8_t _MIN, const uint8_t _SEC);
+		// Returns: 0 ... 4294967295
+
+		// de tijd die we krijgen is in onze tijdzone met of zonder zomertijd
+		// de convertfunctie verwacht UTC time
+		// eerste converteren en dan de aanpassing doen
+	char buffer[13];				//buffer: 221028213843
+	lltoa(date,buffer,13,10);
+	char YY[3] = {0};
+  	memcpy(&YY, &buffer[0], sizeof(YY)-1);		// YY: 22
+	char MM[3] = {0};
+  	memcpy(&MM, &buffer[2], sizeof(MM)-1);		// MM: 10
+	char DD[3] = {0};
+  	memcpy(&DD, &buffer[4], sizeof(DD)-1);		// DD: 28
+	char hh[3] = {0};
+  	memcpy(&hh, &buffer[6], sizeof(hh)-1);		// hh: 21
+	char mm[3] = {0};
+  	memcpy(&mm, &buffer[8], sizeof(mm)-1);		// mm: 38
+	char ss[3] = {0};
+  	memcpy(&ss, &buffer[10], sizeof(ss)-1);		// ss: 43
+	
+	uint32_t epochtime = 0;
+	epochtime = dTF.conDT2UT(atoi(DD),atoi(MM),2000 + atoi(YY),atoi(hh),atoi(mm),atoi(ss));
+	int delta;
+	if(summerTime){
+		delta = 2*60*60;
+	} else {
+		delta = 1*60*60;
+	}
+	// nu nog de tijdzone in zomertijd in rekening brengen (seconden aftrekken of optellen.)
+	return long(epochtime-delta);
 }
 
 // **********************************
@@ -218,10 +259,24 @@ int FindCharInArrayRev(char array[], char c, int len)
     return -1;
 }
 
+int FindCharInArray(char array[], char c, int len)
+{
+    for (int i = 0; i <= len - 1; i++)
+    {
+        if (array[i] == c)
+            return i;
+    }
+    return -1;
+}
+
 long getValue(char *buffer, int maxlen, char startchar, char endchar)
 {
-    int s = FindCharInArrayRev(buffer, startchar, maxlen - 2);
-    int l = FindCharInArrayRev(buffer, endchar, maxlen - 2) - s - 1;
+    //Serial.println(buffer);
+	//Serial.println(maxlen);
+	int s = FindCharInArrayRev(buffer, startchar, maxlen - 1);
+    int l = FindCharInArrayRev(buffer, endchar, maxlen - 1) - s - 1;
+	//Serial.println(s);
+	//Serial.println(l);
 
     char res[16];
     memset(res, 0, sizeof(res));
@@ -241,6 +296,90 @@ long getValue(char *buffer, int maxlen, char startchar, char endchar)
         }
     }
     return 0;
+}
+
+struct timestampData getDate(char *buffer, int maxlen, char startchar, char endchar)
+{
+    // (170531201444S)
+	//Serial.println(buffer);
+	//Serial.println(maxlen);
+	int s = FindCharInArrayRev(buffer, startchar, maxlen - 1);
+    int l = FindCharInArrayRev(buffer, endchar, maxlen - 1) - s - 1;
+	int S = FindCharInArrayRev(buffer, 'S', maxlen - 1);
+	int W = FindCharInArrayRev(buffer, 'W', maxlen - 1);
+	//Serial.println(s);
+	//Serial.println(l);
+	//Serial.println(S);
+	//Serial.println(W);
+	bool ZOMER_UUR = false;
+	if (S != -1) {
+		ZOMER_UUR = true;
+	}
+	else if (W != -1){
+		ZOMER_UUR = false;
+	}
+	struct timestampData timestampData_instance;
+	timestampData_instance.zomeruur = ZOMER_UUR;
+	
+
+    char res[16];
+    memset(res, 0, sizeof(res));
+
+    if (strncpy(res, buffer + s + 1, l-1))		// l-1 want S of W moet niet meegenomen worden
+    {
+		//Serial.println(res);
+        if (isNumber(res, l))
+			timestampData_instance.timestamp = atoll(res);
+    }
+
+    return timestampData_instance;
+}
+
+struct timedValue getTimedValue(char *buffer, int maxlen, char firststartchar, char firstendchar, char laststartchar, char lastendchar){
+	// (221028213843S)(00.378*kW)
+    // Serial.println(buffer);
+	// Serial.println(maxlen);
+	int fs = FindCharInArray(buffer, firststartchar, maxlen - 1);			// startpositie
+    int fl = FindCharInArray(buffer, firstendchar, maxlen - 1) - fs + 1;	  	// lengte  (start en eindkarakter telt wel mee inhoud)
+	int ls = FindCharInArrayRev(buffer, laststartchar, maxlen - 1);				// startpositie
+    int ll = FindCharInArrayRev(buffer, lastendchar, maxlen - 1) - ls + 1;		// lengte (start en eindkarakter telt wel mee inhoud)
+	// Serial.println(fs);
+	// Serial.println(fl);
+	// Serial.println(ls);
+	// Serial.println(ll);
+	struct timedValue timedValue_instance;
+    char res[16];
+    memset(res, 0, sizeof(res));
+
+	// de datum eruit halen
+	// hier gebruiken we de getDate function
+	if (strncpy(res, buffer + fs, fl)){		//strncpy kopiert de eerste 'l' karakters, te beginnen bij positie 's' (want eerste karakter moet wel mee) 
+    	// (221028213843S)
+		//timestampData tijdstip;
+		//tijdstip = getDate(res, sizeof(res),'(',')');
+		//Serial.println(res);
+		timedValue_instance.timestamp = getDate(res, sizeof(res),firststartchar,firstendchar);
+    }
+
+	memset(res, 0, sizeof(res));
+	// de value eruit halen
+    if (strncpy(res, buffer + ls, ll)){		//strncpy kopiert de eerste 'l' karakters, te beginnen bij positie 's+1' (want eerste karakter moet niet mee) 
+		//Serial.println(res);
+        timedValue_instance.value = getValue(res, sizeof(res),laststartchar,lastendchar);
+		// if (lastendchar == '*')
+        // {
+        //     if (isNumber(res, ll))
+        //         // * Lazy convert float to long
+		// 		//timedValue_instance.value = 1000 * atof(res);
+		// 		timedValue_instance.value = atof(res);
+        // }
+        // else if (lastendchar == ')')
+        // {
+        //     if (isNumber(res, ll))
+        //         timedValue_instance.value = atof(res);
+        //}
+    }
+    return timedValue_instance;
 }
 
 bool decode_telegram(int len)
@@ -278,16 +417,19 @@ bool decode_telegram(int len)
         strncpy(messageCRC, telegram + endChar + 1, 4);
 
         messageCRC[4] = 0;   // * Thanks to HarmOtten (issue 5)
-        validCRCFound = (strtol(messageCRC, NULL, 16) == currentCRC);
+        validCRCFound = (strtol(messageCRC, NULL, 16) == long(currentCRC));
 		
 		//Serial.print("    last line; CRC: ");
 		//Serial.println(currentCRC);
 
-        if (validCRCFound)
-            Serial.println(F("CRC Valid!"));
-        else
-            Serial.println(currentCRC);
-			Serial.println(F("CRC Invalid!"));
+        if (validCRCFound){
+            Serial.print(currentCRC);
+			Serial.println(F(" CRC Valid!"));
+		}
+        else{
+            Serial.print(currentCRC);
+			Serial.println(F(" CRC Invalid!"));
+		}
 
         currentCRC = 0;
     }
@@ -297,6 +439,24 @@ bool decode_telegram(int len)
 		//Serial.print("    other line; CRC: ");
 		//Serial.println(currentCRC);
     }
+
+		
+	// **********************************
+	// * Timestamp Elek                 *
+	// **********************************
+
+    // 0-0:1.0.0(170531201444S)
+    // 0-0:1.0.0 = timestamp
+    if (strncmp(telegram, "0-0:1.0.0", strlen("0-0:1.0.0")) == 0)
+    {
+		TIMESTAMP = getDate(telegram, len, '(', ')');
+		//Serial.println(TIMESTAMP.timestamp);
+    }
+
+	// **********************************
+	// * Meterstanden Elek              *
+	// **********************************
+
 
     // 1-0:1.8.1(000992.992*kWh)
     // 1-0:1.8.1 = Elektra verbruik laag tarief (DSMR v4.0)
@@ -328,6 +488,46 @@ bool decode_telegram(int len)
     {
         RETURNDELIVERY_HIGH_TARIF = getValue(telegram, len, '(', '*');
     }
+
+	// **********************************
+	// * Meterstanden Gas               *
+	// **********************************
+
+	// 0-1:24.2.1(150531200000S)(00811.923*m3)
+    // 0-1:24.2.1 = Gas (DSMR v4.0) on Kaifa MA105 meter
+    if (strncmp(telegram, "0-1:24.2.1", strlen("0-1:24.2.1")) == 0)
+    {
+        GAS_METER_M3 = getTimedValue(telegram, len, '(', ')', '(', '*');
+		//Serial.println(GAS_METER_M3.timestamp.timestamp);
+		//Serial.println(GAS_METER_M3.value);
+    }
+	
+	
+    // 0-1:24.2.3(150531200000S)(00811.923*m3)
+    // 0-1:24.2.3 = Gas on Belgian meters
+    if (strncmp(telegram, "0-1:24.2.3", strlen("0-1:24.2.3")) == 0)
+    {
+        GAS_METER_M3 = getTimedValue(telegram, len, '(', ')', '(', '*');
+    }
+
+
+
+	// **********************************
+	// * Meterstanden Water             *
+	// **********************************
+
+	// 0-2:24.2.1(221028213843S)(00004.332*m3)
+    // 0-2:24.2.1 = water on Belgian meters
+    if (strncmp(telegram, "0-2:24.2.1", strlen("0-2:24.2.1")) == 0)
+    {
+        WATER_METER_M3 = getTimedValue(telegram, len, '(', ')', '(', '*');
+	}
+
+	
+
+	// **********************************
+	// * Vermogen Elek                  *
+	// **********************************
 
     // 1-0:1.7.0(00.424*kW) Actueel verbruik
     // 1-0:1.7.x = Electricity consumption actual usage (DSMR v4.0)
@@ -363,7 +563,33 @@ bool decode_telegram(int len)
         L3_INSTANT_POWER_USAGE = getValue(telegram, len, '(', '*');
     }
 
-    // 1-0:31.7.0(002*A)
+	// 1-0:22.7.0(00.378*kW)
+    // 1-0:22.7.0 = Instantaan vermogen Elektriciteit productie L1
+    if (strncmp(telegram, "1-0:22.7.0", strlen("1-0:22.7.0")) == 0)
+    {
+        L1_INSTANT_POWER_PRODUCTION = getValue(telegram, len, '(', '*');
+    }
+
+    // 1-0:42.7.0(00.378*kW)
+    // 1-0:42.7.0 = Instantaan vermogen Elektriciteit productie L2
+    if (strncmp(telegram, "1-0:42.7.0", strlen("1-0:42.7.0")) == 0)
+    {
+        L2_INSTANT_POWER_PRODUCTION = getValue(telegram, len, '(', '*');
+    }
+
+    // 1-0:62.7.0(00.378*kW)
+    // 1-0:62.7.0 = Instantaan vermogen Elektriciteit productie L3
+    if (strncmp(telegram, "1-0:62.7.0", strlen("1-0:62.7.0")) == 0)
+    {
+        L3_INSTANT_POWER_PRODUCTION = getValue(telegram, len, '(', '*');
+    }
+
+	
+	// **********************************
+	// * Spanning en stroom Elek        *
+	// **********************************
+
+	// 1-0:31.7.0(002*A)
     // 1-0:31.7.0 = Instantane stroom Elektriciteit L1
     if (strncmp(telegram, "1-0:31.7.0", strlen("1-0:31.7.0")) == 0)
     {
@@ -401,22 +627,13 @@ bool decode_telegram(int len)
         L3_VOLTAGE = getValue(telegram, len, '(', '*');
     }
 
-    // 0-1:24.2.1(150531200000S)(00811.923*m3)
-    // 0-1:24.2.1 = Gas (DSMR v4.0) on Kaifa MA105 meter
-    if (strncmp(telegram, "0-1:24.2.1", strlen("0-1:24.2.1")) == 0)
-    {
-        GAS_METER_M3 = getValue(telegram, len, '(', '*');
-    }
-	
-	
-    // 0-1:24.2.3(150531200000S)(00811.923*m3)
-    // 0-1:24.2.3 = Gas on Belgian meters
-    if (strncmp(telegram, "0-1:24.2.3", strlen("0-1:24.2.3")) == 0)
-    {
-        GAS_METER_M3 = getValue(telegram, len, '(', '*');
-    }
 
-    // 0-0:96.14.0(0001)
+
+	// **********************************
+	// * Varia Elek                     *
+	// **********************************
+
+    // 0-0:96.14.0(0000)
     // 0-0:96.14.0 = Actual Tarif
     if (strncmp(telegram, "0-0:96.14.0", strlen("0-0:96.14.0")) == 0)
     {
@@ -450,6 +667,26 @@ bool decode_telegram(int len)
     {
         SHORT_POWER_PEAKS = getValue(telegram, len, '(', ')');
     }
+
+
+	// **********************************
+	// * Kwartierwaarden Elek           *
+	// **********************************
+
+	// 1-0:1.4.0(00.378*kW)
+    // 1-0:1.4.0 = kwartierwaarde
+    if (strncmp(telegram, "1-0:1.4.0", strlen("1-0:1.4.0")) == 0)
+    {
+        QUARTER_VALUE = getValue(telegram, len, '(', '*');
+    }
+
+	// 1-0:1.6.0(221028213843S)(00.378*kW)
+    // 1-0:1.6.0 = tijdstip en  max kwartierpiek deze maand
+    if (strncmp(telegram, "1-0:1.6.0", strlen("1-0:1.6.0")) == 0)
+    {
+        QUARTER_PEAK_CURRENT_MONTH = getTimedValue(telegram, len, '(', ')','(','*');
+    }
+
 
     return validCRCFound;
 	///return true;
@@ -498,16 +735,17 @@ void processLine(int len) {
 
     bool result = decode_telegram(len + 1);
 
-
+	//testing
+	//result = true;
     if (result) {
-        if (LAST_GAS_METER_M3 > 0) {
-            if (GAS_METER_M3 > LAST_GAS_METER_M3) {
-                ACTUAL_CONSUMPTION_GAS_M3 = GAS_METER_M3 - LAST_GAS_METER_M3;
-            }
-        } else {
-            ACTUAL_CONSUMPTION_GAS_M3 = 0;
-        }
-        LAST_GAS_METER_M3 = GAS_METER_M3;
+        // if (LAST_GAS_METER_M3 > 0) {
+        //     if (GAS_METER_M3 > LAST_GAS_METER_M3) {
+        //         ACTUAL_CONSUMPTION_GAS_M3 = GAS_METER_M3 - LAST_GAS_METER_M3;
+        //     }
+        // } else {
+        //     ACTUAL_CONSUMPTION_GAS_M3 = 0;
+        // }
+        // LAST_GAS_METER_M3 = GAS_METER_M3;
         send_data_to_broker();
         LAST_UPDATE_SENT = millis();
     }
