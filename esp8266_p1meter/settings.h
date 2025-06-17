@@ -53,54 +53,60 @@ char telegram[P1_MAXLINELENGTH];
 struct timestampData{
 	long long timestamp;
 	bool zomeruur;
+	bool available;
 };
 timestampData TIMESTAMP;
 
 struct timedValue{
 	timestampData timestamp;
 	float value;
+	bool available;
 };
 timedValue QUARTER_PEAK_CURRENT_MONTH;
 timedValue GAS_METER_M3;
 timedValue WATER_METER_M3;
 
 
+struct data_info{
+	bool available;
+	long value;
+};
 // * Set to store the data values read
-long CONSUMPTION_LOW_TARIF;
-long CONSUMPTION_HIGH_TARIF;
+data_info CONSUMPTION_LOW_TARIF;
+data_info CONSUMPTION_HIGH_TARIF;
 
-long RETURNDELIVERY_LOW_TARIF;
-long RETURNDELIVERY_HIGH_TARIF;
+data_info RETURNDELIVERY_LOW_TARIF;
+data_info RETURNDELIVERY_HIGH_TARIF;
 
-long ACTUAL_CONSUMPTION;
-long ACTUAL_RETURNDELIVERY;
+data_info ACTUAL_CONSUMPTION;
+data_info ACTUAL_RETURNDELIVERY;
 //long GAS_METER_M3;
 //long ACTUAL_CONSUMPTION_GAS_M3;
 //long LAST_GAS_METER_M3;
 
-long L1_INSTANT_POWER_USAGE;
-long L2_INSTANT_POWER_USAGE;
-long L3_INSTANT_POWER_USAGE;
-long L1_INSTANT_POWER_PRODUCTION;
-long L2_INSTANT_POWER_PRODUCTION;
-long L3_INSTANT_POWER_PRODUCTION;
+data_info L1_INSTANT_POWER_USAGE;
+data_info L2_INSTANT_POWER_USAGE;
+data_info L3_INSTANT_POWER_USAGE;
+data_info L1_INSTANT_POWER_PRODUCTION;
+data_info L2_INSTANT_POWER_PRODUCTION;
+data_info L3_INSTANT_POWER_PRODUCTION;
 
 
-long L1_INSTANT_POWER_CURRENT;
-long L2_INSTANT_POWER_CURRENT;
-long L3_INSTANT_POWER_CURRENT;
-long L1_VOLTAGE;
-long L2_VOLTAGE;
-long L3_VOLTAGE;
+data_info L1_INSTANT_POWER_CURRENT;
+data_info L2_INSTANT_POWER_CURRENT;
+data_info L3_INSTANT_POWER_CURRENT;
+data_info L1_VOLTAGE;
+data_info L2_VOLTAGE;
+data_info L3_VOLTAGE;
 
-long QUARTER_VALUE;
+data_info QUARTER_VALUE;
 
 // Set to store data counters read
-long ACTUAL_TARIF;
-long SHORT_POWER_OUTAGES;
-long LONG_POWER_OUTAGES;
-long SHORT_POWER_DROPS;
-long SHORT_POWER_PEAKS;
+data_info ACTUAL_TARIF;
+data_info SHORT_POWER_OUTAGES;
+data_info LONG_POWER_OUTAGES;
+data_info SHORT_POWER_DROPS;
+data_info SHORT_POWER_PEAKS;
 
 // * Set during CRC checking
 unsigned int currentCRC = 0;
