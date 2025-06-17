@@ -34,6 +34,7 @@
 
 // * Belgian meters have flipped high and low tarif codes, this variable allows you to flip
 #define FLIPHIGHLOWTARIF true
+#define GRID400 false
 
 // * MQTT Last reconnection counter
 long LAST_RECONNECT_ATTEMPT = 0;

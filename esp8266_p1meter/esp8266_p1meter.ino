@@ -152,8 +152,8 @@ void send_data_to_broker()
         send_metric("returndelivery_high_tarif", RETURNDELIVERY_HIGH_TARIF.value);
     }
 
-    send_metric("actual_consumption", ACTUAL_CONSUMPTION.value);
-    send_metric("actual_returndelivery", ACTUAL_RETURNDELIVERY.value);
+    //send_metric("actual_consumption", ACTUAL_CONSUMPTION.value);
+    //send_metric("actual_returndelivery", ACTUAL_RETURNDELIVERY.value);
 	send_metric("timestamp", epochUTC(TIMESTAMP.timestamp, TIMESTAMP.zomeruur));
 
     // send_metric("l1_instant_power_usage", L1_INSTANT_POWER_USAGE);
@@ -170,7 +170,7 @@ void send_data_to_broker()
     send_metric("gas_meter_m3 waarde", GAS_METER_M3.value);
     //send_metric("actual_consumption_gas_m3", ACTUAL_CONSUMPTION_GAS_M3);
 
-    send_metric("actual_tarif_group", ACTUAL_TARIF.value);
+    //send_metric("actual_tarif_group", ACTUAL_TARIF.value);
     //send_metric("short_power_outages", SHORT_POWER_OUTAGES);
     //send_metric("long_power_outages", LONG_POWER_OUTAGES);
     //send_metric("short_power_drops", SHORT_POWER_DROPS);
@@ -188,42 +188,120 @@ void send_data(){
 	// https://arduinojson.org/v7/example/
 
 	// originele SMA meter
-	//power/home/energy (gemiddelde waarden 5 seconden)
+	//power/home/energy (gemiddelde waarden 5 seconden voor vermorgen)  --> nog te bepalen hoe je dit berekend.
 	//	{"time": 1748202861, "E_tot_pos": 17851.0626, "E_tot_neg": 14327.9693, "E_tot": 3523.0933, "P_tot_pos": 337.2, "P_tot_neg": 0.0, "P_tot": 337.2, "Cosphi": 0.81, "VL1L3": 232.6, "VL2L3": 233.3}
 	
 	//power/home/energy/instant (instantane waarde per 5 seconden)
 	//	{"time": 1748202861, "P_tot_inst": 336.4}
 
-	// *****************
-	// *     Elek      *
-	// *****************
-
-	// decode TIMESTAMP
-		// TIMESTAMP.timestamp = 221028213843; 2022 10 28 // 21u 38m 43s
-		// TIMESTAMP.zomeruur = true;
-		// datetime
 	
-	float P_tot = L1_INSTANT_POWER_USAGE.value + L2_INSTANT_POWER_USAGE.value + L3_INSTANT_POWER_USAGE.value - L1_INSTANT_POWER_PRODUCTION.value - L2_INSTANT_POWER_PRODUCTION.value - L3_INSTANT_POWER_PRODUCTION.value;
-	float P_tot_pos = 0;
-	float P_tot_neg = 0;
-	if(P_tot > 0){
-		P_tot_pos = abs(P_tot);
-	} else {
-		P_tot_neg = abs(P_tot);
-	}
+	/*
+	TIMESTAMP.available = true;
+	CONSUMPTION_LOW_TARIF.available = true;
+	CONSUMPTION_HIGH_TARIF.available = true;
+	RETURNDELIVERY_LOW_TARIF.available = true;
+	RETURNDELIVERY_HIGH_TARIF.available = true;
+	GAS_METER_M3.available = true;
+	WATER_METER_M3.available = true;
+	ACTUAL_CONSUMPTION.available = true;
+	ACTUAL_RETURNDELIVERY.available = true;
+	L1_INSTANT_POWER_USAGE.available = true;
+	L2_INSTANT_POWER_USAGE.available = true;
+	L3_INSTANT_POWER_USAGE.available = true;
+	L1_INSTANT_POWER_PRODUCTION.available = true;
+	L2_INSTANT_POWER_PRODUCTION.available = true;
+	L3_INSTANT_POWER_PRODUCTION.available = true;
+	L1_INSTANT_POWER_CURRENT.available = true;
+	L2_INSTANT_POWER_CURRENT.available = true;
+	L3_INSTANT_POWER_CURRENT.available = true;
+	L1_VOLTAGE.available = true;
+	L2_VOLTAGE.available = true;
+	L3_VOLTAGE.available = true;
+	ACTUAL_TARIF.value = true;
+	SHORT_POWER_OUTAGES.value = true;
+	LONG_POWER_OUTAGES.value = true;
+	SHORT_POWER_DROPS.value = true;
+	SHORT_POWER_PEAKS.value = true;
+	QUARTER_VALUE.available = true;
+	QUARTER_PEAK_CURRENT_MONTH.available = true;
+    */
+
+
 
 	JsonDocument energy;
-	energy["time"] = epochUTC(TIMESTAMP.timestamp, TIMESTAMP.zomeruur);
-	energy["E_tot_pos"] = CONSUMPTION_LOW_TARIF.value + CONSUMPTION_HIGH_TARIF.value;
-	energy["E_tot_neg"] = RETURNDELIVERY_LOW_TARIF.value + RETURNDELIVERY_HIGH_TARIF.value;
-	energy["E_tot"] = CONSUMPTION_LOW_TARIF.value + CONSUMPTION_HIGH_TARIF.value - (RETURNDELIVERY_LOW_TARIF.value + RETURNDELIVERY_HIGH_TARIF.value);
-	energy["P_tot_pos"] = P_tot_pos;
-	energy["P_tot_neg"] = P_tot_neg;
-	energy["P_tot"] = P_tot;
-	energy["VL1"] = L1_VOLTAGE.value;
-	energy["VL2"] = L2_VOLTAGE.value;
-	energy["VL3"] = L3_VOLTAGE.value;
+	if(TIMESTAMP.available){
+		//als er geen timestamp is, dan geen MQTT berichten
+		energy["time"] = epochUTC(TIMESTAMP.timestamp, TIMESTAMP.zomeruur);
 
+		if(L1_INSTANT_POWER_USAGE.available && L2_INSTANT_POWER_USAGE.available && L3_INSTANT_POWER_USAGE.available && L1_INSTANT_POWER_PRODUCTION.available && L2_INSTANT_POWER_PRODUCTION.available && L3_INSTANT_POWER_PRODUCTION.available){
+			float P_tot = L1_INSTANT_POWER_USAGE.value + L2_INSTANT_POWER_USAGE.value + L3_INSTANT_POWER_USAGE.value - L1_INSTANT_POWER_PRODUCTION.value - L2_INSTANT_POWER_PRODUCTION.value - L3_INSTANT_POWER_PRODUCTION.value;
+			float P_tot_pos = 0;
+			float P_tot_neg = 0;
+			if(P_tot > 0){
+				P_tot_pos = abs(P_tot);
+			} else {
+				P_tot_neg = abs(P_tot);
+			}
+
+			energy["P_tot_pos"] = P_tot_pos;
+			energy["P_tot_neg"] = P_tot_neg;
+			energy["P_tot"] = P_tot;
+		}
+	
+		if(CONSUMPTION_LOW_TARIF.available && CONSUMPTION_HIGH_TARIF.available && RETURNDELIVERY_LOW_TARIF.available && RETURNDELIVERY_HIGH_TARIF.available){
+			energy["E_tot_pos"] = CONSUMPTION_LOW_TARIF.value + CONSUMPTION_HIGH_TARIF.value;
+			energy["E_tot_neg"] = RETURNDELIVERY_LOW_TARIF.value + RETURNDELIVERY_HIGH_TARIF.value;
+			energy["E_tot"] = CONSUMPTION_LOW_TARIF.value + CONSUMPTION_HIGH_TARIF.value - (RETURNDELIVERY_LOW_TARIF.value + RETURNDELIVERY_HIGH_TARIF.value);
+		}
+		
+		if(L1_VOLTAGE.available && L2_VOLTAGE.available && L3_VOLTAGE.available){
+			if(GRID400){
+				energy["VL1"] = L1_VOLTAGE.value;
+				energy["VL2"] = L2_VOLTAGE.value;
+				energy["VL3"] = L3_VOLTAGE.value;
+			} else {
+			energy["VL1L3"] = L1_VOLTAGE.value;
+			energy["VL2L3"] = L2_VOLTAGE.value;
+			}
+		}
+	}
+
+	JsonDocument energy_instant;
+	if(TIMESTAMP.available){
+		//als er geen timestamp is, dan geen MQTT berichten
+		energy_instant["time"] = epochUTC(TIMESTAMP.timestamp, TIMESTAMP.zomeruur);
+	}
+
+
+	// reset all availibilities:
+	TIMESTAMP.available = false;
+	CONSUMPTION_LOW_TARIF.available = false;
+	CONSUMPTION_HIGH_TARIF.available = false;
+	RETURNDELIVERY_LOW_TARIF.available = false;
+	RETURNDELIVERY_HIGH_TARIF.available = false;
+	GAS_METER_M3.available = false;
+	WATER_METER_M3.available = false;
+	ACTUAL_CONSUMPTION.available = false;
+	ACTUAL_RETURNDELIVERY.available = false;
+	L1_INSTANT_POWER_USAGE.available = false;
+	L2_INSTANT_POWER_USAGE.available = false;
+	L3_INSTANT_POWER_USAGE.available = false;
+	L1_INSTANT_POWER_PRODUCTION.available = false;
+	L2_INSTANT_POWER_PRODUCTION.available = false;
+	L3_INSTANT_POWER_PRODUCTION.available = false;
+	L1_INSTANT_POWER_CURRENT.available = false;
+	L2_INSTANT_POWER_CURRENT.available = false;
+	L3_INSTANT_POWER_CURRENT.available = false;
+	L1_VOLTAGE.available = false;
+	L2_VOLTAGE.available = false;
+	L3_VOLTAGE.available = false;
+	ACTUAL_TARIF.value = false;
+	SHORT_POWER_OUTAGES.value = false;
+	LONG_POWER_OUTAGES.value = false;
+	SHORT_POWER_DROPS.value = false;
+	SHORT_POWER_PEAKS.value = false;
+	QUARTER_VALUE.available = false;
+	QUARTER_PEAK_CURRENT_MONTH.available = false;
 }
 
 
@@ -500,6 +578,7 @@ bool decode_telegram(int len)
     if (strncmp(telegram, "0-0:1.0.0", strlen("0-0:1.0.0")) == 0)
     {
 		TIMESTAMP = getDate(telegram, len, '(', ')');
+		TIMESTAMP.available = true;
 		//Serial.println(TIMESTAMP.timestamp);
     }
 
@@ -514,7 +593,7 @@ bool decode_telegram(int len)
     {
         
 		CONSUMPTION_LOW_TARIF.value = getValue(telegram, len, '(', '*');
-		//Serial.print("  CONSUMPTION_LOW_TARIF: ");
+		CONSUMPTION_LOW_TARIF.available = true;//Serial.print("  CONSUMPTION_LOW_TARIF: ");
 		//Serial.println(CONSUMPTION_LOW_TARIF);
     }
 
@@ -523,6 +602,7 @@ bool decode_telegram(int len)
     if (strncmp(telegram, "1-0:1.8.2", strlen("1-0:1.8.2")) == 0)
     {
         CONSUMPTION_HIGH_TARIF.value = getValue(telegram, len, '(', '*');
+		CONSUMPTION_HIGH_TARIF.available = true;
     }
 	
     // 1-0:2.8.1(000560.157*kWh)
@@ -530,6 +610,7 @@ bool decode_telegram(int len)
     if (strncmp(telegram, "1-0:2.8.1", strlen("1-0:2.8.1")) == 0)
     {
         RETURNDELIVERY_LOW_TARIF.value = getValue(telegram, len, '(', '*');
+		RETURNDELIVERY_LOW_TARIF.available = true;
     }
 
     // 1-0:2.8.2(000560.157*kWh)
@@ -537,6 +618,7 @@ bool decode_telegram(int len)
     if (strncmp(telegram, "1-0:2.8.2", strlen("1-0:2.8.2")) == 0)
     {
         RETURNDELIVERY_HIGH_TARIF.value = getValue(telegram, len, '(', '*');
+		RETURNDELIVERY_HIGH_TARIF.available = true;
     }
 
 	// **********************************
@@ -548,6 +630,7 @@ bool decode_telegram(int len)
     if (strncmp(telegram, "0-1:24.2.1", strlen("0-1:24.2.1")) == 0)
     {
         GAS_METER_M3 = getTimedValue(telegram, len, '(', ')', '(', '*');
+		GAS_METER_M3.available = true;
 		//Serial.println(GAS_METER_M3.timestamp.timestamp);
 		//Serial.println(GAS_METER_M3.value);
     }
@@ -558,6 +641,7 @@ bool decode_telegram(int len)
     if (strncmp(telegram, "0-1:24.2.3", strlen("0-1:24.2.3")) == 0)
     {
         GAS_METER_M3 = getTimedValue(telegram, len, '(', ')', '(', '*');
+		GAS_METER_M3.available = true;
     }
 
 
@@ -571,6 +655,7 @@ bool decode_telegram(int len)
     if (strncmp(telegram, "0-2:24.2.1", strlen("0-2:24.2.1")) == 0)
     {
         WATER_METER_M3 = getTimedValue(telegram, len, '(', ')', '(', '*');
+		WATER_METER_M3.available = true;
 	}
 
 	
@@ -584,12 +669,14 @@ bool decode_telegram(int len)
     if (strncmp(telegram, "1-0:1.7.0", strlen("1-0:1.7.0")) == 0)
     {
         ACTUAL_CONSUMPTION.value = getValue(telegram, len, '(', '*');
+		ACTUAL_CONSUMPTION.available = true;
     }
 
     // 1-0:2.7.0(00.000*kW) Actuele teruglevering (-P) in 1 Watt resolution
     if (strncmp(telegram, "1-0:2.7.0", strlen("1-0:2.7.0")) == 0)
     {
         ACTUAL_RETURNDELIVERY.value = getValue(telegram, len, '(', '*');
+		ACTUAL_RETURNDELIVERY.available = true;
     }
 
     // 1-0:21.7.0(00.378*kW)
@@ -597,6 +684,7 @@ bool decode_telegram(int len)
     if (strncmp(telegram, "1-0:21.7.0", strlen("1-0:21.7.0")) == 0)
     {
         L1_INSTANT_POWER_USAGE.value = getValue(telegram, len, '(', '*');
+		L1_INSTANT_POWER_USAGE.available = true;
     }
 
     // 1-0:41.7.0(00.378*kW)
@@ -604,6 +692,7 @@ bool decode_telegram(int len)
     if (strncmp(telegram, "1-0:41.7.0", strlen("1-0:41.7.0")) == 0)
     {
         L2_INSTANT_POWER_USAGE.value = getValue(telegram, len, '(', '*');
+		L2_INSTANT_POWER_USAGE.available = true;
     }
 
     // 1-0:61.7.0(00.378*kW)
@@ -611,6 +700,7 @@ bool decode_telegram(int len)
     if (strncmp(telegram, "1-0:61.7.0", strlen("1-0:61.7.0")) == 0)
     {
         L3_INSTANT_POWER_USAGE.value = getValue(telegram, len, '(', '*');
+		L3_INSTANT_POWER_USAGE.available = true;
     }
 
 	// 1-0:22.7.0(00.378*kW)
@@ -618,6 +708,7 @@ bool decode_telegram(int len)
     if (strncmp(telegram, "1-0:22.7.0", strlen("1-0:22.7.0")) == 0)
     {
         L1_INSTANT_POWER_PRODUCTION.value = getValue(telegram, len, '(', '*');
+		L1_INSTANT_POWER_PRODUCTION.available = true;
     }
 
     // 1-0:42.7.0(00.378*kW)
@@ -625,6 +716,7 @@ bool decode_telegram(int len)
     if (strncmp(telegram, "1-0:42.7.0", strlen("1-0:42.7.0")) == 0)
     {
         L2_INSTANT_POWER_PRODUCTION.value = getValue(telegram, len, '(', '*');
+        L2_INSTANT_POWER_PRODUCTION.available = true;
     }
 
     // 1-0:62.7.0(00.378*kW)
@@ -632,6 +724,7 @@ bool decode_telegram(int len)
     if (strncmp(telegram, "1-0:62.7.0", strlen("1-0:62.7.0")) == 0)
     {
         L3_INSTANT_POWER_PRODUCTION.value = getValue(telegram, len, '(', '*');
+		L3_INSTANT_POWER_PRODUCTION.available = true;
     }
 
 	
@@ -644,18 +737,21 @@ bool decode_telegram(int len)
     if (strncmp(telegram, "1-0:31.7.0", strlen("1-0:31.7.0")) == 0)
     {
         L1_INSTANT_POWER_CURRENT.value = getValue(telegram, len, '(', '*');
+		L1_INSTANT_POWER_CURRENT.available = true;
     }
     // 1-0:51.7.0(002*A)
     // 1-0:51.7.0 = Instantane stroom Elektriciteit L2
     if (strncmp(telegram, "1-0:51.7.0", strlen("1-0:51.7.0")) == 0)
     {
         L2_INSTANT_POWER_CURRENT.value = getValue(telegram, len, '(', '*');
+		L2_INSTANT_POWER_CURRENT.available = true;
     }
     // 1-0:71.7.0(002*A)
     // 1-0:71.7.0 = Instantane stroom Elektriciteit L3
     if (strncmp(telegram, "1-0:71.7.0", strlen("1-0:71.7.0")) == 0)
     {
         L3_INSTANT_POWER_CURRENT.value = getValue(telegram, len, '(', '*');
+		L3_INSTANT_POWER_CURRENT.available = true;
     }
 
     // 1-0:32.7.0(232.0*V)
@@ -663,18 +759,21 @@ bool decode_telegram(int len)
     if (strncmp(telegram, "1-0:32.7.0", strlen("1-0:32.7.0")) == 0)
     {
         L1_VOLTAGE.value = getValue(telegram, len, '(', '*');
+		L1_VOLTAGE.available = true;
     }
     // 1-0:52.7.0(232.0*V)
     // 1-0:52.7.0 = Voltage L2
     if (strncmp(telegram, "1-0:52.7.0", strlen("1-0:52.7.0")) == 0)
     {
         L2_VOLTAGE.value = getValue(telegram, len, '(', '*');
+		L2_VOLTAGE.available = true;
     }   
     // 1-0:72.7.0(232.0*V)
     // 1-0:72.7.0 = Voltage L3
     if (strncmp(telegram, "1-0:72.7.0", strlen("1-0:72.7.0")) == 0)
     {
         L3_VOLTAGE.value = getValue(telegram, len, '(', '*');
+		L3_VOLTAGE.available = true;
     }
 
 
@@ -688,6 +787,7 @@ bool decode_telegram(int len)
     if (strncmp(telegram, "0-0:96.14.0", strlen("0-0:96.14.0")) == 0)
     {
         ACTUAL_TARIF.value = getValue(telegram, len, '(', ')');
+		ACTUAL_TARIF.value = true;
     }
 
     // 0-0:96.7.21(00003)
@@ -695,6 +795,7 @@ bool decode_telegram(int len)
     if (strncmp(telegram, "0-0:96.7.21", strlen("0-0:96.7.21")) == 0)
     {
         SHORT_POWER_OUTAGES.value = getValue(telegram, len, '(', ')');
+		SHORT_POWER_OUTAGES.value = true;
     }
 
     // 0-0:96.7.9(00001)
@@ -702,6 +803,7 @@ bool decode_telegram(int len)
     if (strncmp(telegram, "0-0:96.7.9", strlen("0-0:96.7.9")) == 0)
     {
         LONG_POWER_OUTAGES.value = getValue(telegram, len, '(', ')');
+		LONG_POWER_OUTAGES.value = true;
     }
 
     // 1-0:32.32.0(00000)
@@ -709,6 +811,7 @@ bool decode_telegram(int len)
     if (strncmp(telegram, "1-0:32.32.0", strlen("1-0:32.32.0")) == 0)
     {
         SHORT_POWER_DROPS.value = getValue(telegram, len, '(', ')');
+		SHORT_POWER_DROPS.value = true;
     }
 
     // 1-0:32.36.0(00000)
@@ -716,6 +819,7 @@ bool decode_telegram(int len)
     if (strncmp(telegram, "1-0:32.36.0", strlen("1-0:32.36.0")) == 0)
     {
         SHORT_POWER_PEAKS.value = getValue(telegram, len, '(', ')');
+		SHORT_POWER_PEAKS.value = true;
     }
 
 
@@ -728,6 +832,7 @@ bool decode_telegram(int len)
     if (strncmp(telegram, "1-0:1.4.0", strlen("1-0:1.4.0")) == 0)
     {
         QUARTER_VALUE.value = getValue(telegram, len, '(', '*');
+		QUARTER_VALUE.available = true;
     }
 
 	// 1-0:1.6.0(221028213843S)(00.378*kW)
@@ -735,6 +840,7 @@ bool decode_telegram(int len)
     if (strncmp(telegram, "1-0:1.6.0", strlen("1-0:1.6.0")) == 0)
     {
         QUARTER_PEAK_CURRENT_MONTH = getTimedValue(telegram, len, '(', ')','(','*');
+		QUARTER_PEAK_CURRENT_MONTH.available = true;
     }
 
 
