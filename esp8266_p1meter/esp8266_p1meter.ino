@@ -132,6 +132,14 @@ void send_metric(String name, long metric)
     //send_mqtt_message(topic.c_str(), output);
 }
 
+void send_data_mqtt(String topic, JsonDocument json_data){
+	
+	char buffer[256];
+	size_t n = serializeJson(json_data, buffer);
+	send_mqtt_message(topic.c_str(), buffer);
+	//client.publish("outTopic", buffer, n);
+}
+
 void send_data_to_broker()
 {
     if (FLIPHIGHLOWTARIF) {
@@ -228,10 +236,10 @@ void send_data(){
 
 
 
-	JsonDocument energy;
+	JsonDocument J_energy;
 	if(TIMESTAMP.available){
 		//als er geen timestamp is, dan geen MQTT berichten
-		energy["time"] = epochUTC(TIMESTAMP.timestamp, TIMESTAMP.zomeruur);
+		J_energy["time"] = epochUTC(TIMESTAMP.timestamp, TIMESTAMP.zomeruur);
 
 		if(L1_INSTANT_POWER_USAGE.available && L2_INSTANT_POWER_USAGE.available && L3_INSTANT_POWER_USAGE.available && L1_INSTANT_POWER_PRODUCTION.available && L2_INSTANT_POWER_PRODUCTION.available && L3_INSTANT_POWER_PRODUCTION.available){
 			float P_tot = L1_INSTANT_POWER_USAGE.value + L2_INSTANT_POWER_USAGE.value + L3_INSTANT_POWER_USAGE.value - L1_INSTANT_POWER_PRODUCTION.value - L2_INSTANT_POWER_PRODUCTION.value - L3_INSTANT_POWER_PRODUCTION.value;
@@ -243,36 +251,37 @@ void send_data(){
 				P_tot_neg = abs(P_tot);
 			}
 
-			energy["P_tot_pos"] = P_tot_pos;
-			energy["P_tot_neg"] = P_tot_neg;
-			energy["P_tot"] = P_tot;
+			J_energy["P_tot_pos"] = P_tot_pos;
+			J_energy["P_tot_neg"] = P_tot_neg;
+			J_energy["P_tot"] = P_tot;
 		}
 	
 		if(CONSUMPTION_LOW_TARIF.available && CONSUMPTION_HIGH_TARIF.available && RETURNDELIVERY_LOW_TARIF.available && RETURNDELIVERY_HIGH_TARIF.available){
-			energy["E_tot_pos"] = CONSUMPTION_LOW_TARIF.value + CONSUMPTION_HIGH_TARIF.value;
-			energy["E_tot_neg"] = RETURNDELIVERY_LOW_TARIF.value + RETURNDELIVERY_HIGH_TARIF.value;
-			energy["E_tot"] = CONSUMPTION_LOW_TARIF.value + CONSUMPTION_HIGH_TARIF.value - (RETURNDELIVERY_LOW_TARIF.value + RETURNDELIVERY_HIGH_TARIF.value);
+			J_energy["E_tot_pos"] = CONSUMPTION_LOW_TARIF.value + CONSUMPTION_HIGH_TARIF.value;
+			J_energy["E_tot_neg"] = RETURNDELIVERY_LOW_TARIF.value + RETURNDELIVERY_HIGH_TARIF.value;
+			J_energy["E_tot"] = CONSUMPTION_LOW_TARIF.value + CONSUMPTION_HIGH_TARIF.value - (RETURNDELIVERY_LOW_TARIF.value + RETURNDELIVERY_HIGH_TARIF.value);
 		}
 		
 		if(L1_VOLTAGE.available && L2_VOLTAGE.available && L3_VOLTAGE.available){
 			if(GRID400){
-				energy["VL1"] = L1_VOLTAGE.value;
-				energy["VL2"] = L2_VOLTAGE.value;
-				energy["VL3"] = L3_VOLTAGE.value;
+				J_energy["VL1"] = L1_VOLTAGE.value;
+				J_energy["VL2"] = L2_VOLTAGE.value;
+				J_energy["VL3"] = L3_VOLTAGE.value;
 			} else {
-			energy["VL1L3"] = L1_VOLTAGE.value;
-			energy["VL2L3"] = L2_VOLTAGE.value;
+				J_energy["VL1L3"] = L1_VOLTAGE.value;
+				J_energy["VL2L3"] = L2_VOLTAGE.value;
 			}
 		}
+		send_data_mqtt(MQTT_ROOT_TOPIC, J_energy);
 	}
 
-	JsonDocument energy_instant;
+	JsonDocument J_energy_instant;
 	if(TIMESTAMP.available){
 		//als er geen timestamp is, dan geen MQTT berichten
-		energy_instant["time"] = epochUTC(TIMESTAMP.timestamp, TIMESTAMP.zomeruur);
+		J_energy_instant["time"] = epochUTC(TIMESTAMP.timestamp, TIMESTAMP.zomeruur);
 	}
 
-
+	JsonDocument J_quarter_values;
 	// reset all availibilities:
 	TIMESTAMP.available = false;
 	CONSUMPTION_LOW_TARIF.available = false;
@@ -903,6 +912,7 @@ void processLine(int len) {
         // }
         // LAST_GAS_METER_M3 = GAS_METER_M3;
         send_data_to_broker();
+		send_data();
         LAST_UPDATE_SENT = millis();
     }
 
