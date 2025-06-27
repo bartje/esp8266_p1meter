@@ -31,6 +31,9 @@
 
 // * MQTT root topic
 #define MQTT_ROOT_TOPIC "sensors/power/p1meter"
+#define MQTT_TOPIC_POWER "test/power/home/energy"
+#define MQTT_TOPIC_GAS "test/home/verbruik/gas"
+#define MQTT_TOPIC_WATER "test/home/verbruik/water"
 
 // * Belgian meters have flipped high and low tarif codes, this variable allows you to flip
 #define FLIPHIGHLOWTARIF true
@@ -60,7 +63,7 @@ timestampData TIMESTAMP;
 
 struct timedValue{
 	timestampData timestamp;
-	float value;
+	long value;
 	bool available;
 };
 timedValue QUARTER_PEAK_CURRENT_MONTH;

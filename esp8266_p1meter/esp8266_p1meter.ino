@@ -135,7 +135,8 @@ void send_metric(String name, long metric)
 void send_data_mqtt(String topic, JsonDocument json_data){
 	
 	char buffer[256];
-	size_t n = serializeJson(json_data, buffer);
+	//size_t n = serializeJson(json_data, buffer);
+	serializeJson(json_data, buffer);
 	send_mqtt_message(topic.c_str(), buffer);
 	//client.publish("outTopic", buffer, n);
 }
@@ -234,8 +235,6 @@ void send_data(){
 	QUARTER_PEAK_CURRENT_MONTH.available = true;
     */
 
-
-
 	JsonDocument J_energy;
 	if(TIMESTAMP.available){
 		//als er geen timestamp is, dan geen MQTT berichten
@@ -272,16 +271,44 @@ void send_data(){
 				J_energy["VL2L3"] = L2_VOLTAGE.value;
 			}
 		}
-		send_data_mqtt(MQTT_ROOT_TOPIC, J_energy);
+		send_data_mqtt(MQTT_TOPIC_POWER, J_energy);
 	}
 
 	JsonDocument J_energy_instant;
 	if(TIMESTAMP.available){
 		//als er geen timestamp is, dan geen MQTT berichten
 		J_energy_instant["time"] = epochUTC(TIMESTAMP.timestamp, TIMESTAMP.zomeruur);
+		send_data_mqtt(String(MQTT_TOPIC_POWER) + "/instant", J_energy_instant);
 	}
 
 	JsonDocument J_quarter_values;
+	if(QUARTER_VALUE.available){
+	
+		J_quarter_values["time"] = epochUTC(TIMESTAMP.timestamp, TIMESTAMP.zomeruur);
+		J_quarter_values["Current_quarter_value"] = QUARTER_VALUE.value;
+		
+		if(QUARTER_PEAK_CURRENT_MONTH.available){
+			J_quarter_values["This_month_quarter_timestamp"] = epochUTC(QUARTER_PEAK_CURRENT_MONTH.timestamp.timestamp, QUARTER_PEAK_CURRENT_MONTH.timestamp.zomeruur);
+			J_quarter_values["This_month_quarter_value"] = QUARTER_PEAK_CURRENT_MONTH.value;
+		}
+		send_data_mqtt(String(MQTT_TOPIC_POWER) + "/fluvius/quartervalues", J_quarter_values);
+	}
+	JsonDocument J_gas;
+	if(GAS_METER_M3.available){
+		//als er geen timestamp is, dan geen MQTT berichten
+		J_gas["time"] = epochUTC(GAS_METER_M3.timestamp.timestamp, GAS_METER_M3.timestamp.zomeruur);
+		J_gas["value"]= GAS_METER_M3.value;
+		send_data_mqtt(MQTT_TOPIC_GAS, J_gas);
+	}
+
+	JsonDocument J_water;
+	if(WATER_METER_M3.available){
+		//als er geen timestamp is, dan geen MQTT berichten
+		J_water["time"] = epochUTC(WATER_METER_M3.timestamp.timestamp, WATER_METER_M3.timestamp.zomeruur);
+		J_water["value"]= WATER_METER_M3.value;
+		send_data_mqtt(MQTT_TOPIC_WATER, J_water);
+	}
+	
 	// reset all availibilities:
 	TIMESTAMP.available = false;
 	CONSUMPTION_LOW_TARIF.available = false;
@@ -1043,7 +1070,7 @@ void setup()
     Serial.flush();
 
     // Invert the RX serialport by setting a register value, this way the TX might continue normally allowing the serial monitor to read println's
-    //////USC0(UART0) = USC0(UART0) | BIT(UCRXI);
+    USC0(UART0) = USC0(UART0) | BIT(UCRXI);
     Serial.println("Serial port is ready to recieve.");
 
     // * Set led pin as output
