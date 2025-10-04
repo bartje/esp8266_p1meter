@@ -11,6 +11,13 @@
 #include <WebServer.h>
 #include <ElegantOTA.h>
 
+#include "arduino-dsmr-2/fields.h"
+#include "arduino-dsmr-2/packet_accumulator.h"
+#include "arduino-dsmr-2/parser.h"
+#include <iostream>
+
+using namespace arduino_dsmr_2;
+using namespace fields;
 
 
 //oude code
@@ -59,11 +66,45 @@ void onOTAEnd(bool success) {
 // * Set The Class Object Name
 DateTimeFunctions dTF;
 
+// * om de info vanuit de P1 poort te verzamelen
+//PacketAccumulator accumulator(/* bufferSize */ P1_MAXLINELENGTH, /* check_crc */ true);
+PacketAccumulator accumulator(/* bufferSize */ P1_MAXLINELENGTH, /* check_crc */ false);
+
+using MyData = ParsedData<
+    /* String */ identification,
+	/* String */ p1_version_be,
+    /* String */ timestamp,
+    /* String */ equipment_id,
+    /* FixedValue */ energy_delivered_tariff1,
+	/* FixedValue */ energy_delivered_tariff2,
+	/* FixedValue */ energy_returned_tariff1,
+	/* FixedValue */ energy_returned_tariff2,
+	/* String */ electricity_tariff,
+	/* FixedValue */ power_delivered,
+	/* FixedValue */ power_returned,
+	// /* uint32_t */ electricity_failures,
+	// /* uint32_t */ electricity_long_failures,
+	// /* String */ electricity_failure_log,
+	// /* String */ message_short,
+	// /* String */ message_long,
+	/* FixedValue */ current_l1,
+	/* FixedValue */ current_l2,
+	/* FixedValue */ current_l3,
+	/* FixedValue */ power_delivered_l1,
+	/* FixedValue */ power_delivered_l2,
+	/* FixedValue */ power_delivered_l3,
+	/* FixedValue */ power_returned_l1,
+	/* FixedValue */ power_returned_l2,
+	/* FixedValue */ power_returned_l3,
+	/* FixedValue */ active_energy_import_current_average_demand,
+	/*TimestampedFixedValue*/ active_energy_import_maximum_demand_running_month,
+	/*TimestampedFixedValue*/ gas_delivered_be,
+	/*TimestampedFixedValue*/water_delivered>;
 // * Initiate WIFI client
-WiFiClient espClient;
+//WiFiClient espClient;
 
 // * Initiate MQTT client
-PubSubClient mqtt_client(espClient);
+//PubSubClient mqtt_client(espClient);
 
 
 
@@ -194,7 +235,7 @@ void send_data(){
 	energy["VL3"] = L3_VOLTAGE;
 
 }
-
+*/
 long epochUTC(long date, bool summerTime) {
 	// Convert date time to unix time.  
 		// uint32_t conDT2UT(const uint8_t _DAY, const uint8_t _MONTH, const uint16_t _YEAR, const uint8_t _HOUR, const uint8_t _MIN, const uint8_t _SEC);
@@ -230,7 +271,7 @@ long epochUTC(long date, bool summerTime) {
 	// nu nog de tijdzone in zomertijd in rekening brengen (seconden aftrekken of optellen.)
 	return long(epochtime-delta);
 }
-
+ /*
 // **********************************
 // * P1                             *
 // **********************************
@@ -357,39 +398,70 @@ struct timedValue getTimedValue(char *buffer, int maxlen, char firststartchar, c
     }
     return timedValue_instance;
 }
+ */
 
-struct timestampData getDate(char *buffer, int maxlen, char startchar, char endchar)
-{
-    // (170531201444S)
-	int s = FindCharInArrayRev(buffer, startchar, maxlen - 2);
-    int l = FindCharInArrayRev(buffer, endchar, maxlen - 2) - s - 1;
-	int S = FindCharInArrayRev(buffer, 'S', maxlen - 2) - s - 1;
-	int W = FindCharInArrayRev(buffer, 'W', maxlen - 2) - s - 1;
-	bool ZOMER = false;
-	if (S != -1) {
-		ZOMER = true;
-		l = S;
-	}
-	else if (W != -1){
-		ZOMER = false;
-		l = W;
-	}
-	struct timestampData timestampData_instance;
-	timestampData_instance.zomeruur = ZOMER;
+struct timestampData getDate(const std::string& buffer){
+    // 170531201444S	
+	bool VALID = false;
+	bool SUMMER = false;
 	
+	if (buffer[12] == 'S') {
+		SUMMER = true;
+		VALID = true;
+	}
+	else if (buffer[12] == 'W'){
+		SUMMER = false;
+		VALID = true;
+	}
+	
+	struct timestampData timestampData_instance;
+	timestampData_instance.valid_data = VALID;
+	
+	//indien er een datum wordt ingelezen --> naar epoch omzetten
+	if(VALID){
+		timestampData_instance.meterTimestamp = buffer;
+		// Convert date time to unix time.  
+		// uint32_t conDT2UT(const uint8_t _DAY, const uint8_t _MONTH, const uint16_t _YEAR, const uint8_t _HOUR, const uint8_t _MIN, const uint8_t _SEC);
+		// Returns: 0 ... 4294967295
 
-    char res[16];
-    memset(res, 0, sizeof(res));
-
-    if (strncpy(res, buffer + s + 1, l))
-    {
-        if (isNumber(res, l))
-            timestampData_instance.timestamp = atof(res);
-    }
+		// de tijd die we krijgen is in onze tijdzone met of zonder zomertijd
+		// de convertfunctie verwacht UTC time
+		// eerste converteren en dan de aanpassing doen
+		
+		char YY[3] = {0};
+  		memcpy(&YY, &buffer[0], sizeof(YY)-1);		// YY: 22
+		char MM[3] = {0};
+		memcpy(&MM, &buffer[2], sizeof(MM)-1);		// MM: 10
+		char DD[3] = {0};
+		memcpy(&DD, &buffer[4], sizeof(DD)-1);		// DD: 28
+		char hh[3] = {0};
+		memcpy(&hh, &buffer[6], sizeof(hh)-1);		// hh: 21
+		char mm[3] = {0};
+		memcpy(&mm, &buffer[8], sizeof(mm)-1);		// mm: 38
+		char ss[3] = {0};
+		memcpy(&ss, &buffer[10], sizeof(ss)-1);		// ss: 43
+		//Serial.print("during Epoch: ");
+		//Serial.print(YY);
+		//Serial.print(MM);
+		//Serial.print(DD);
+		//Serial.print(hh);
+		//Serial.print(mm);
+		//Serial.println(ss);
+		uint32_t epochtime = 0;
+		epochtime = dTF.conDT2UT(atoi(DD),atoi(MM),2000 + atoi(YY),atoi(hh),atoi(mm),atoi(ss));
+		int delta;
+		if(SUMMER){
+			delta = 2*60*60;
+		} else {
+			delta = 1*60*60;
+		}
+		// nu nog de tijdzone in zomertijd in rekening brengen (seconden aftrekken of optellen.)
+		timestampData_instance.epochTimestamp = long(epochtime-delta);
+	}
     return timestampData_instance;
+	
 }
-
-
+/*
 bool decode_telegram(int len)
 {	
 	int startChar = FindCharInArrayRev(telegram, '/', len);		// eerste character van de eerste verzending uit de informatietrein
@@ -674,15 +746,90 @@ bool decode_telegram(int len)
 	///return true;
 }
 
-void read_p1_hardwareserial()
-{
-	if (log_telegrams){
-		memset(complete_telegram, 0, sizeof(complete_telegram));
-		//total_len = 0;
-	}
-	if (Serial.available())
-	{
-        //Serial.println("Serial.available");
+*/
+
+void read_p1_hardwareserial(){
+	MyData data;
+	bool first = true;
+	while (Serial2.available())	{
+        if(first){
+			Serial.print("start: ");
+			Serial.println(millis());
+			first=false;
+		}
+		
+		// First step is to get the full message from the P1 port.
+		// In this example, we go through the bytes from the message above.
+		// In a real application, you need to read the bytes from the UART one byte at a time.
+		//for (const auto& byte : data_from_p1_port) {
+			// feed the byte to the accumulator
+			auto res = accumulator.process_byte(Serial2.read());
+
+			// During receiving, errors may occur, such as CRC mismatches.
+			// You can optionally log these errors, or ignore them.
+			if (res.error()) {
+				Serial.printf("Error during receiving a packet: %s", to_string(*res.error()));
+			}
+
+			// When a full packet is received, the packet() method will return it.
+			// The packet starts with '/' and ends with the '!'.
+			// The CRC is not included.
+			if (res.packet()) {
+				// Parse the received packet.
+				const auto packet = *res.packet();
+				Serial.println(packet.data());
+				// Specify `check_crc` as false, since the accumulator already checked the CRC and didn't include it in the packet
+				P1Parser::parse(&data, packet.data(), packet.size(), /* unknown_error */ false, /* check_crc */ false);
+				LAST_UPDATE_SENT = millis();
+				
+				// Now you can use the parsed data.
+				//data.applyEach(Printer());
+				
+				// strings
+				Serial.printf("Identification: %s\n", data.identification.c_str());
+				Serial.printf("P1 version: %s\n", data.p1_version_be.c_str());
+				Serial.printf("Timestamp: %s\n", data.timestamp.c_str());
+				Serial.printf("Equipment ID: %s\n", data.equipment_id.c_str());
+				
+				// FixedValue
+				Serial.printf("Energy delivered tariff 1: %.3f\n", static_cast<double>(data.energy_delivered_tariff1.val()));
+				Serial.printf("Energy delivered tariff 2: %.3f\n", static_cast<double>(data.energy_delivered_tariff2.val()));
+				Serial.printf("Energy returned tariff 1: %.3f\n", static_cast<double>(data.energy_returned_tariff1.val()));
+				Serial.printf("Energy returned tariff 2: %.3f\n", static_cast<double>(data.energy_returned_tariff2.val()));
+				Serial.printf("Power delivered: %.3f\n", static_cast<double>(data.power_delivered.val()));
+				Serial.printf("Power returned: %.3f\n", static_cast<double>(data.power_returned.val()));
+
+				Serial.printf("Power delivered L1: %.3f\n", static_cast<double>(data.power_delivered_l1.val()));
+				Serial.printf("Power returned L1: %.3f\n", static_cast<double>(data.power_returned_l1.val()));
+				Serial.printf("Power delivered L2: %.3f\n", static_cast<double>(data.power_delivered_l2.val()));
+				Serial.printf("Power returned L3: %.3f\n", static_cast<double>(data.power_returned_l2.val()));
+				Serial.printf("Power delivered L3: %.3f\n", static_cast<double>(data.power_delivered_l3.val()));
+				Serial.printf("Power returned L3: %.3f\n", static_cast<double>(data.power_returned_l3.val()));
+
+				Serial.printf("Current L1: %.3f\n", static_cast<double>(data.current_l1.val()));
+				Serial.printf("Current L2: %.3f\n", static_cast<double>(data.current_l2.val()));
+				Serial.printf("Current L3: %.3f\n", static_cast<double>(data.current_l3.val()));
+
+				// TimestampedFixedValue
+				Serial.printf("Gasverbruik: %.3f\n", static_cast<double>(data.gas_delivered_be.val()));
+				Serial.printf("Gas timestamp: %s\n", data.gas_delivered_be.timestamp.c_str());
+				Serial.printf("Waterverbruik: %.3f\n", static_cast<double>(data.water_delivered.val()));
+				Serial.printf("Water timestamp: %s\n", data.water_delivered.timestamp.c_str());
+				
+				timestampData testtime = getDate(data.gas_delivered_be.timestamp);
+				if(testtime.valid_data){
+					Serial.print("gas epoch: ");
+					Serial.println(testtime.epochTimestamp);
+				}
+				Serial.print("end: ");
+				Serial.println(millis());
+
+				//--> maak nu boodschappen voor mqtt.  opgelet inhoud controleren alvorens te versturen.
+			}
+		//}
+
+		/*
+		//Serial.println("Serial.available");
 		
 		memset(telegram, 0, sizeof(telegram));
 		
@@ -729,9 +876,11 @@ void read_p1_hardwareserial()
 			Serial.print("Complete_telegram value: ");
 			Serial.println(complete_telegram);
 		}
+		*/
     }
 }
 
+/*
 void processLine(int len) {
     //Serial.print("ProcessLine length: ");
 	//Serial.println(len);
@@ -851,9 +1000,11 @@ void loop()
 	// lees serial2 en schrijf naar Serial
 	long now = millis();
 
+	
 	if (now - LAST_UPDATE_SENT > UPDATE_INTERVAL) {
 		read_p1_hardwareserial();
-    }
+	}
+	
 
 	/*
 	if(Serial2.available()){
@@ -866,11 +1017,12 @@ void loop()
 			//ESP.wdtDisable();			//watchdog disable, geen idee waarom
             int len = Serial2.readBytesUntil('\n', telegram, P1_MAXLINELENGTH);
             //ESP.wdtEnable(1);
-			Serial.print("gelezen bytes: ");
-			Serial.println(len);
-			Serial.print("telegram value: ");
+			//Serial.print("gelezen bytes: ");
+			//Serial.println(len);
+			//Serial.print("telegram value: ");
 			Serial.println(telegram);
 		}
 	}
 	*/
+	
 }

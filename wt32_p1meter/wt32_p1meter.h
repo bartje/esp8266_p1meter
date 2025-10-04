@@ -32,9 +32,17 @@ const char* ntpServer						= "router.witje";			// NTP server to request epoch ti
 // P1-port
 //*********/
 #define UPDATE_INTERVAL 9500  // 1 minute
-#define P1_MAXLINELENGTH 1050
+#define P1_MAXLINELENGTH 5050
 // * Set to store received telegram
 char telegram[P1_MAXLINELENGTH];
+
+// * Set to store the data values read
+struct timestampData{
+	bool valid_data;
+	std::string meterTimestamp;
+	long epochTimestamp;
+};
+timestampData TIMESTAMP;
 
 
 //*********/
