@@ -7,6 +7,7 @@
 #include <time.h>
 #include <ArduinoJson.h>
 #include <DateTimeFunctions.h>
+#include <cmath>
 
 #include <WebServer.h>
 #include <ElegantOTA.h>
@@ -67,8 +68,11 @@ void onOTAEnd(bool success) {
 DateTimeFunctions dTF;
 
 // * om de info vanuit de P1 poort te verzamelen
+
+// CRC check aanzetten in productie
 //PacketAccumulator accumulator(/* bufferSize */ P1_MAXLINELENGTH, /* check_crc */ true);
 PacketAccumulator accumulator(/* bufferSize */ P1_MAXLINELENGTH, /* check_crc */ false);
+
 
 using MyData = ParsedData<
     /* String */ identification,
@@ -90,22 +94,38 @@ using MyData = ParsedData<
 	/* FixedValue */ current_l1,
 	/* FixedValue */ current_l2,
 	/* FixedValue */ current_l3,
-	/* FixedValue */ power_delivered_l1,
-	/* FixedValue */ power_delivered_l2,
-	/* FixedValue */ power_delivered_l3,
-	/* FixedValue */ power_returned_l1,
-	/* FixedValue */ power_returned_l2,
-	/* FixedValue */ power_returned_l3,
+	/* FixedValue */ voltage_l1,
+	/* FixedValue */ voltage_l2,
+	/* FixedValue */ voltage_l3,
+	// /* FixedValue */ power_delivered_l1,
+	// /* FixedValue */ power_delivered_l2,
+	// /* FixedValue */ power_delivered_l3,
+	// /* FixedValue */ power_returned_l1,
+	// /* FixedValue */ power_returned_l2,
+	// /* FixedValue */ power_returned_l3,
 	/* FixedValue */ active_energy_import_current_average_demand,
 	/*TimestampedFixedValue*/ active_energy_import_maximum_demand_running_month,
 	/*TimestampedFixedValue*/ gas_delivered_be,
 	/*TimestampedFixedValue*/water_delivered>;
-// * Initiate WIFI client
+
+
+	// * Initiate WIFI client
 //WiFiClient espClient;
 
 // * Initiate MQTT client
 //PubSubClient mqtt_client(espClient);
 
+// epochtime krijgen
+unsigned long getTime() {
+  time_t now;
+  struct tm timeinfo;
+  if (!getLocalTime(&timeinfo)) {
+    //Serial.println("Failed to obtain time");
+    return(0);
+  }
+  time(&now);
+  return now;
+}
 
 
 // **********************************
@@ -186,24 +206,30 @@ void send_metric(String name, long metric)
     send_mqtt_message(topic.c_str(), output);
 }
 
+*/
 
-void send_data(){
-	// !! hoe er zeker van zijn dat je geen oude data opstuurt --
+float round_prec(double n, int prec)
+{
+    return std::round(n * pow(10, prec)) / pow(10, prec);
+}
+
+void send_data(JsonDocument jsonData, const char *topic){ // topic; payload
 	
-	// maak verschillende json met de relevante data in
-	// meterstanden Elek
-	// meterstanden Gas
-	// meterstanden Water
-	// historische data
-	// https://arduinojson.org/v7/example/
+	String payload;
+	serializeJson(jsonData, payload);
+	if (!NO_NETWORK){
+		mqttClient.publish(topic, payload.c_str());
+	}
+	if (ENABLE_LOG) {
+		Serial.println("*****");
+		Serial.print("sending to topic: ");
+		Serial.println(topic);
+		Serial.print("data: ");
+		Serial.println(payload.c_str());
+		Serial.println("*****");
+	}
 
-	// originele SMA meter
-	//power/home/energy (gemiddelde waarden 5 seconden)
-	//	{"time": 1748202861, "E_tot_pos": 17851.0626, "E_tot_neg": 14327.9693, "E_tot": 3523.0933, "P_tot_pos": 337.2, "P_tot_neg": 0.0, "P_tot": 337.2, "Cosphi": 0.81, "VL1L3": 232.6, "VL2L3": 233.3}
 	
-	//power/home/energy/instant (instantane waarde per 5 seconden)
-	//	{"time": 1748202861, "P_tot_inst": 336.4}
-
 	// *****************
 	// *     Elek      *
 	// *****************
@@ -213,192 +239,29 @@ void send_data(){
 		// TIMESTAMP.zomeruur = true;
 		// datetime
 	
-	float P_tot = L1_INSTANT_POWER_USAGE + L2_INSTANT_POWER_USAGE+ L3_INSTANT_POWER_USAGE - L1_INSTANT_POWER_PRODUCTION - L2_INSTANT_POWER_PRODUCTION - L3_INSTANT_POWER_PRODUCTION;
-	float P_tot_pos = 0;
-	float P_tot_neg = 0;
-	if(P_tot > 0){
-		P_tot_pos = abs(P_tot);
-	} else {
-		P_tot_neg = abs(P_tot);
-	}
+	// float P_tot = L1_INSTANT_POWER_USAGE + L2_INSTANT_POWER_USAGE+ L3_INSTANT_POWER_USAGE - L1_INSTANT_POWER_PRODUCTION - L2_INSTANT_POWER_PRODUCTION - L3_INSTANT_POWER_PRODUCTION;
+	// float P_tot_pos = 0;
+	// float P_tot_neg = 0;
+	// if(P_tot > 0){
+	// 	P_tot_pos = abs(P_tot);
+	// } else {
+	// 	P_tot_neg = abs(P_tot);
+	// }
 
-	JsonDocument energy;
-	energy["time"] = epochUTC(TIMESTAMP.timestamp, TIMESTAMP.zomeruur);
-	energy["E_tot_pos"] = CONSUMPTION_LOW_TARIF + CONSUMPTION_HIGH_TARIF;
-	energy["E_tot_neg"] = RETURNDELIVERY_LOW_TARIF + RETURNDELIVERY_HIGH_TARIF;
-	energy["E_tot"] = CONSUMPTION_LOW_TARIF + CONSUMPTION_HIGH_TARIF - (RETURNDELIVERY_LOW_TARIF + RETURNDELIVERY_HIGH_TARIF);
-	energy["P_tot_pos"] = P_tot_pos;
-	energy["P_tot_neg"] = P_tot_neg;
-	energy["P_tot"] = P_tot;
-	energy["VL1"] = L1_VOLTAGE;
-	energy["VL2"] = L2_VOLTAGE;
-	energy["VL3"] = L3_VOLTAGE;
+	// JsonDocument energy;
+	// energy["time"] = epochUTC(TIMESTAMP.timestamp, TIMESTAMP.zomeruur);
+	// energy["E_tot_pos"] = CONSUMPTION_LOW_TARIF + CONSUMPTION_HIGH_TARIF;
+	// energy["E_tot_neg"] = RETURNDELIVERY_LOW_TARIF + RETURNDELIVERY_HIGH_TARIF;
+	// energy["E_tot"] = CONSUMPTION_LOW_TARIF + CONSUMPTION_HIGH_TARIF - (RETURNDELIVERY_LOW_TARIF + RETURNDELIVERY_HIGH_TARIF);
+	// energy["P_tot_pos"] = P_tot_pos;
+	// energy["P_tot_neg"] = P_tot_neg;
+	// energy["P_tot"] = P_tot;
+	// energy["VL1"] = L1_VOLTAGE;
+	// energy["VL2"] = L2_VOLTAGE;
+	// energy["VL3"] = L3_VOLTAGE;
 
 }
-*/
-long epochUTC(long date, bool summerTime) {
-	// Convert date time to unix time.  
-		// uint32_t conDT2UT(const uint8_t _DAY, const uint8_t _MONTH, const uint16_t _YEAR, const uint8_t _HOUR, const uint8_t _MIN, const uint8_t _SEC);
-		// Returns: 0 ... 4294967295
 
-		// de tijd die we krijgen is in onze tijdzone met of zonder zomertijd
-		// de convertfunctie verwacht UTC time
-		// eerste converteren en dan de aanpassing doen
-	char buffer [sizeof(long)*8+1];				//buffer: 221028213843
-	ltoa(date,buffer,10);
-	
-	char YY[3] = {0};
-  	memcpy(&YY, &buffer[0], sizeof(YY)-1);		// YY: 22
-	char MM[3] = {0};
-  	memcpy(&YY, &buffer[2], sizeof(MM)-1);		// MM: 10
-	char DD[3] = {0};
-  	memcpy(&YY, &buffer[4], sizeof(DD)-1);		// DD: 28
-	char hh[3] = {0};
-  	memcpy(&YY, &buffer[4], sizeof(hh)-1);		// hh: 21
-	char mm[3] = {0};
-  	memcpy(&YY, &buffer[4], sizeof(mm)-1);		// mm: 38
-	char ss[3] = {0};
-  	memcpy(&YY, &buffer[4], sizeof(ss)-1);		// ss: 43
-	
-	uint32_t epochtime = 0;
-	epochtime = dTF.conDT2UT(atoi(DD),atoi(MM),2000 + atoi(YY),atoi(hh),atoi(mm),atoi(ss));
-	int delta;
-	if(summerTime){
-		delta = 2*60*60;
-	} else {
-		delta = 1*60*60;
-	}
-	// nu nog de tijdzone in zomertijd in rekening brengen (seconden aftrekken of optellen.)
-	return long(epochtime-delta);
-}
- /*
-// **********************************
-// * P1                             *
-// **********************************
-
-unsigned int CRC16(unsigned int crc, unsigned char *buf, int len)
-{
-	for (int pos = 0; pos < len; pos++)
-    {
-		crc ^= (unsigned int)buf[pos];    // * XOR byte into least sig. byte of crc
-                                          // * Loop over each bit
-        for (int i = 8; i != 0; i--)
-        {
-            // * If the LSB is set
-            if ((crc & 0x0001) != 0)
-            {
-                // * Shift right and XOR 0xA001
-                crc >>= 1;
-				crc ^= 0xA001;
-			}
-            // * Else LSB is not set
-            else
-                // * Just shift right
-                crc >>= 1;
-		}
-	}
-	return crc;
-}
-
-bool isNumber(char *res, int len)
-{
-    for (int i = 0; i < len; i++)
-    {
-        if (((res[i] < '0') || (res[i] > '9')) && (res[i] != '.' && res[i] != 0))
-            return false;
-    }
-    return true;
-}
-
-int FindCharInArrayRev(char array[], char c, int len)
-{
-    for (int i = len - 1; i >= 0; i--)
-    {
-        if (array[i] == c)
-            return i;
-    }
-    return -1;
-}
-
-int FindCharInArray(char array[], char c, int len)
-{
-    for (int i = 0; i >= len - 1; i++)
-    {
-        if (array[i] == c)
-            return i;
-    }
-    return -1;
-}
-
-
-float getValue(char *buffer, int maxlen, char startchar, char endchar)
-{
-    int s = FindCharInArrayRev(buffer, startchar, maxlen - 2);
-    int l = FindCharInArrayRev(buffer, endchar, maxlen - 2) - s - 1;
-
-    char res[16];
-    memset(res, 0, sizeof(res));
-
-    if (strncpy(res, buffer + s + 1, l))
-    {
-        if (endchar == '*')
-        {
-            if (isNumber(res, l))
-                // * Lazy convert float to long
-                //return (1000 * atof(res));
-				// return a float
-				return (atof(res));
-        }
-        else if (endchar == ')')
-        {
-            if (isNumber(res, l))
-                return atof(res);
-        }
-    }
-    return 0;
-}
-
-struct timedValue getTimedValue(char *buffer, int maxlen, char firststartchar, char firstendchar, char laststartchar, char lastendchar){
-	// (221028213843S)(00.378*kW)
-    int fs = FindCharInArrayRev(buffer, firststartchar, maxlen - 2);			// startpositie
-    int fl = FindCharInArrayRev(buffer, firstendchar, maxlen - 2) - fs;		  	// lengte  (eindkarakter telt wel mee inhoud)
-	int ls = FindCharInArrayRev(buffer, laststartchar, maxlen - 2);				// startpositie
-    int ll = FindCharInArrayRev(buffer, lastendchar, maxlen - 2) - ls - 1;		// lengte
-	
-	struct timedValue timedValue_instance;
-    char res[16];
-    memset(res, 0, sizeof(res));
-
-	// de datum eruit halen
-	// hier gebruiken we de getDate function
-	if (strncpy(res, buffer + fs, fl))		//strncpy kopiert de eerste 'l' karakters, te beginnen bij positie 's' (want eerste karakter moet wel mee) 
-    // (221028213843S)
-	{
-		//timestampData tijdstip;
-		//tijdstip = getDate(res, sizeof(res),'(',')');
-		timedValue_instance.timestamp = getDate(res, sizeof(res),'(',')');
-    }
-
-	memset(res, 0, sizeof(res));
-	// de value eruit halen
-    if (strncpy(res, buffer + ls + 1, ll))		//strncpy kopiert de eerste 'l' karakters, te beginnen bij positie 's+1' (want eerste karakter moet niet mee) 
-    {
-        if (lastendchar == '*')
-        {
-            if (isNumber(res, ll))
-                // * Lazy convert float to long
-				//timedValue_instance.value = 1000 * atof(res);
-				timedValue_instance.value = atof(res);
-        }
-        else if (lastendchar == ')')
-        {
-            if (isNumber(res, ll))
-                timedValue_instance.value = atof(res);
-        }
-    }
-    return timedValue_instance;
-}
- */
 
 struct timestampData getDate(const std::string& buffer){
     // 170531201444S	
@@ -750,156 +613,179 @@ bool decode_telegram(int len)
 
 void read_p1_hardwareserial(){
 	MyData data;
-	bool first = true;
+	//bool first = true;
 	while (Serial2.available())	{
-        if(first){
-			Serial.print("start: ");
-			Serial.println(millis());
-			first=false;
-		}
+        // if(first){
+		// 	Serial.print("start: ");
+		// 	Serial.println(millis());
+		// 	first=false;
+		// }
 		
 		// First step is to get the full message from the P1 port.
-		// In this example, we go through the bytes from the message above.
-		// In a real application, you need to read the bytes from the UART one byte at a time.
-		//for (const auto& byte : data_from_p1_port) {
-			// feed the byte to the accumulator
-			auto res = accumulator.process_byte(Serial2.read());
+		auto res = accumulator.process_byte(Serial2.read());
 
-			// During receiving, errors may occur, such as CRC mismatches.
-			// You can optionally log these errors, or ignore them.
-			if (res.error()) {
-				Serial.printf("Error during receiving a packet: %s", to_string(*res.error()));
-			}
-
-			// When a full packet is received, the packet() method will return it.
-			// The packet starts with '/' and ends with the '!'.
-			// The CRC is not included.
-			if (res.packet()) {
-				// Parse the received packet.
-				const auto packet = *res.packet();
-				Serial.println(packet.data());
-				// Specify `check_crc` as false, since the accumulator already checked the CRC and didn't include it in the packet
-				P1Parser::parse(&data, packet.data(), packet.size(), /* unknown_error */ false, /* check_crc */ false);
-				LAST_UPDATE_SENT = millis();
-				
-				// Now you can use the parsed data.
-				//data.applyEach(Printer());
-				
-				// strings
-				Serial.printf("Identification: %s\n", data.identification.c_str());
-				Serial.printf("P1 version: %s\n", data.p1_version_be.c_str());
-				Serial.printf("Timestamp: %s\n", data.timestamp.c_str());
-				Serial.printf("Equipment ID: %s\n", data.equipment_id.c_str());
-				
-				// FixedValue
-				Serial.printf("Energy delivered tariff 1: %.3f\n", static_cast<double>(data.energy_delivered_tariff1.val()));
-				Serial.printf("Energy delivered tariff 2: %.3f\n", static_cast<double>(data.energy_delivered_tariff2.val()));
-				Serial.printf("Energy returned tariff 1: %.3f\n", static_cast<double>(data.energy_returned_tariff1.val()));
-				Serial.printf("Energy returned tariff 2: %.3f\n", static_cast<double>(data.energy_returned_tariff2.val()));
-				Serial.printf("Power delivered: %.3f\n", static_cast<double>(data.power_delivered.val()));
-				Serial.printf("Power returned: %.3f\n", static_cast<double>(data.power_returned.val()));
-
-				Serial.printf("Power delivered L1: %.3f\n", static_cast<double>(data.power_delivered_l1.val()));
-				Serial.printf("Power returned L1: %.3f\n", static_cast<double>(data.power_returned_l1.val()));
-				Serial.printf("Power delivered L2: %.3f\n", static_cast<double>(data.power_delivered_l2.val()));
-				Serial.printf("Power returned L3: %.3f\n", static_cast<double>(data.power_returned_l2.val()));
-				Serial.printf("Power delivered L3: %.3f\n", static_cast<double>(data.power_delivered_l3.val()));
-				Serial.printf("Power returned L3: %.3f\n", static_cast<double>(data.power_returned_l3.val()));
-
-				Serial.printf("Current L1: %.3f\n", static_cast<double>(data.current_l1.val()));
-				Serial.printf("Current L2: %.3f\n", static_cast<double>(data.current_l2.val()));
-				Serial.printf("Current L3: %.3f\n", static_cast<double>(data.current_l3.val()));
-
-				// TimestampedFixedValue
-				Serial.printf("Gasverbruik: %.3f\n", static_cast<double>(data.gas_delivered_be.val()));
-				Serial.printf("Gas timestamp: %s\n", data.gas_delivered_be.timestamp.c_str());
-				Serial.printf("Waterverbruik: %.3f\n", static_cast<double>(data.water_delivered.val()));
-				Serial.printf("Water timestamp: %s\n", data.water_delivered.timestamp.c_str());
-				
-				timestampData testtime = getDate(data.gas_delivered_be.timestamp);
-				if(testtime.valid_data){
-					Serial.print("gas epoch: ");
-					Serial.println(testtime.epochTimestamp);
-				}
-				Serial.print("end: ");
-				Serial.println(millis());
-
-				//--> maak nu boodschappen voor mqtt.  opgelet inhoud controleren alvorens te versturen.
-			}
-		//}
-
-		/*
-		//Serial.println("Serial.available");
-		
-		memset(telegram, 0, sizeof(telegram));
-		
-		//Serial.print("telegram value: ");
-		//Serial.println(telegram);
-		int counter = 0;
-        
-		while (Serial.available())
-        {
-            //Serial.print("Serial.available loop: ");
-			//Serial.println(counter);
-			counter++;
-			
-			ESP.wdtDisable();			//watchdog disable, geen idee waarom
-            int len = Serial.readBytesUntil('\n', telegram, P1_MAXLINELENGTH);
-            ESP.wdtEnable(1);
-			
-			//Serial.print("gelezen bytes: ");
-			//Serial.println(len);
-			//Serial.print("telegram value: ");
-			//Serial.println(telegram);
-            
-			// voeg de telegram toe aan complete_telegram
-			if (log_telegrams){
-				//total_len += len;
-				char message[len+2];
-        		strncpy(message, telegram, len+1);
-				//strcpy (complete_telegram,telegram);
-				strcat(complete_telegram,message);
-				//Serial.print("Temp_telegram value: ");
-				//Serial.println(complete_telegram);
-				//Serial.print("C: ");
-				//Serial.println(counter);
-
-			}
-			
-  		
-
-			processLine(len);
-        }
-		if (log_telegrams){
-			Serial.print("C: ");
-			Serial.println(counter);
-			Serial.print("Complete_telegram value: ");
-			Serial.println(complete_telegram);
+		// During receiving, errors may occur, such as CRC mismatches.
+		// You can optionally log these errors, or ignore them.
+		if (res.error()) {
+			Serial.printf("Error during receiving a packet: %s", to_string(*res.error()));
 		}
-		*/
+
+		// When a full packet is received, the packet() method will return it.
+		// The packet starts with '/' and ends with the '!'.
+		// The CRC is not included.
+		if (res.packet()) {
+			// Parse the received packet.
+			const auto packet = *res.packet();
+			if(ENABLE_LOG){
+				Serial.println(packet.data());
+			}
+			// Specify `check_crc` as false, since the accumulator already checked the CRC and didn't include it in the packet
+			P1Parser::parse(&data, packet.data(), packet.size(), /* unknown_error */ false, /* check_crc */ false);
+			//LAST_UPDATE_SENT = millis();
+			
+			timestampData elekTimestamp = getDate(data.timestamp);
+			if (elekTimestamp.valid_data){
+				counter +=1;
+				P_tot += (data.power_delivered.val() - data.power_returned.val());
+				VL1 += data.voltage_l1.val();
+				VL2 += data.voltage_l2.val();
+				VL3 += data.voltage_l3.val();
+				IL1 += data.current_l1.val();
+				IL2	+= data.current_l2.val();
+				IL3 += data.current_l3.val();
+
+				if(ENABLE_LOG){
+					// strings
+					Serial.printf("Identification: %s\n", data.identification.c_str());
+					Serial.printf("P1 version: %s\n", data.p1_version_be.c_str());
+					Serial.printf("Timestamp: %s\n", data.timestamp.c_str());
+					Serial.printf("Equipment ID: %s\n", data.equipment_id.c_str());
+					
+					// FixedValue
+					Serial.printf("Energy delivered tariff 1: %.3f\n", static_cast<double>(data.energy_delivered_tariff1.val()));
+					Serial.printf("Energy delivered tariff 2: %.3f\n", static_cast<double>(data.energy_delivered_tariff2.val()));
+					Serial.printf("Energy returned tariff 1: %.3f\n", static_cast<double>(data.energy_returned_tariff1.val()));
+					Serial.printf("Energy returned tariff 2: %.3f\n", static_cast<double>(data.energy_returned_tariff2.val()));
+					Serial.printf("Power delivered: %.3f\n", static_cast<double>(data.power_delivered.val()));
+					Serial.printf("Power returned: %.3f\n", static_cast<double>(data.power_returned.val()));
+
+					//Serial.printf("Power delivered L1: %.3f\n", static_cast<double>(data.power_delivered_l1.val()));
+					//Serial.printf("Power returned L1: %.3f\n", static_cast<double>(data.power_returned_l1.val()));
+					//Serial.printf("Power delivered L2: %.3f\n", static_cast<double>(data.power_delivered_l2.val()));
+					//Serial.printf("Power returned L3: %.3f\n", static_cast<double>(data.power_returned_l2.val()));
+					//Serial.printf("Power delivered L3: %.3f\n", static_cast<double>(data.power_delivered_l3.val()));
+					//Serial.printf("Power returned L3: %.3f\n", static_cast<double>(data.power_returned_l3.val()));
+
+					Serial.printf("Current L1: %.3f\n", static_cast<double>(data.current_l1.val()));
+					Serial.printf("Current L2: %.3f\n", static_cast<double>(data.current_l2.val()));
+					Serial.printf("Current L3: %.3f\n", static_cast<double>(data.current_l3.val()));
+
+					// TimestampedFixedValue
+					Serial.printf("Gasverbruik: %.3f\n", static_cast<double>(data.gas_delivered_be.val()));
+					Serial.printf("Gas timestamp: %s\n", data.gas_delivered_be.timestamp.c_str());
+					Serial.printf("Waterverbruik: %.3f\n", static_cast<double>(data.water_delivered.val()));
+					Serial.printf("Water timestamp: %s\n", data.water_delivered.timestamp.c_str());
+				}
+				
+			}
+			if (elekTimestamp.valid_data && elekTimestamp.epochTimestamp % UPDATE_INTERVAL == 0){
+				timestampData gasTimestamp = getDate(data.gas_delivered_be.timestamp);
+				timestampData waterTimestamp = getDate(data.water_delivered.timestamp);
+				timestampData elekPeakMonthTimestamp = getDate(data.active_energy_import_maximum_demand_running_month.timestamp);
+				
+				// is niet meer nodig, want al gedaan ook voor de 5-vouden
+				// counter +=1;
+				// P_tot += (data.power_delivered.val() - data.power_returned.val());
+				// VL1 += data.voltage_l1.val();
+				// VL2 += data.voltage_l2.val();
+				// VL3 += data.voltage_l3.val();
+				// IL1 += data.current_l1.val();
+				// IL2	+= data.current_l2.val();
+				// IL3 += data.current_l3.val();
+				// Serial.print("end: ");
+				// Serial.println(millis());
+				
+				//--> maak nu boodschappen voor mqtt.  opgelet inhoud controleren alvorens te versturen.
+				// elke 5 seconden
+				// power/home/energy (gemiddelde waarden)
+				//				{"time": 1759563805, "E_tot_pos": 18433.6452, "E_tot_neg": 15574.2192, "E_tot": 2859.426, 
+				//					"P_tot_pos": 214.2, "P_tot_neg": 0.0, "P_tot": 214.2, "Cosphi": 0.48, "VL1L3": 231.8, "VL2L3": 233.5}
+				//power/home/energy/instant (instantane waarde per 5 seconden)
+				//				{"time": 1748202861, "P_tot_inst": 336.4}
+
+				
+				JsonDocument elek;
+				JsonDocument elekInst;
+				JsonDocument gas;
+				JsonDocument water;
+				// serializeJson(elek, Serial);
+
+				elek["time"] = elekTimestamp.epochTimestamp;
+				// energy is the latest counter
+				elek["E_tot_pos"] = data.energy_delivered_tariff1.val()+ data.energy_delivered_tariff2.val();
+				elek["E_tot_neg"] = data.energy_returned_tariff1.val() + data.energy_returned_tariff2.val();
+				elek["E_tot"] = (data.energy_delivered_tariff1.val()+ data.energy_delivered_tariff2.val()) - (data.energy_returned_tariff1.val() + data.energy_returned_tariff2.val());
+				
+				// power delivered and power returned kan allebij positief zijn want verschillende fasen
+				
+				float P_tot_pos = 0;
+				float P_tot_neg = 0;
+				if(P_tot > 0){
+					P_tot_pos = abs(P_tot);
+				} else {
+					P_tot_neg = abs(P_tot);
+				}
+				elek["P_tot_pos"] = round_prec(P_tot_pos/counter,3);
+				elek["P_tot_neg"] = round_prec(P_tot_neg/counter,3);
+				elek["P_tot"] = round_prec(P_tot/counter,3);
+				
+				elek["VL1"] = round_prec(VL1/counter,1);
+				elek["VL2"] = round_prec(VL2/counter,1);
+				elek["VL3"] = round_prec(VL3/counter,1);
+				elek["IL1"] = round_prec(IL1/counter,2);
+				elek["IL2"] = round_prec(IL2/counter,2);
+				elek["IL3"] = round_prec(IL3/counter,2);
+				
+				elek["currentPeak"] = data.active_energy_import_current_average_demand.val();
+				if(elekPeakMonthTimestamp.valid_data){
+					elek["timePeak"] = elekPeakMonthTimestamp.epochTimestamp;
+					elek["monthPeak"] = data.active_energy_import_current_average_demand.val();
+				}
+				send_data(elek,mqtt_topic_elek);
+				
+				//reset all tempvalues
+				counter = 0;
+				P_tot = 0;
+				VL1 = 0;
+				VL2 = 0;
+				VL3 = 0;
+				IL1 = 0;
+				IL2	= 0;
+				IL3 = 0;
+
+				float P_tot_inst = data.power_delivered.val() - data.power_returned.val();
+				elekInst["time"] = elekTimestamp.epochTimestamp;
+				elekInst["P_tot_inst"] = P_tot_inst;
+				send_data(elekInst,mqtt_topic_elek_inst);
+				
+				if (gasTimestamp.valid_data){
+					gas["time"] = gasTimestamp.epochTimestamp;
+					gas["verbruik"] = data.gas_delivered_be.val();
+					send_data(gas,mqtt_topic_gas);
+				}
+				if (waterTimestamp.valid_data){
+					water["time"] = waterTimestamp.epochTimestamp;
+					water["verbruik"] = data.water_delivered.val();
+					send_data(water,mqtt_topic_water);
+				}
+
+
+			}
+			
+		}
     }
 }
 
-/*
-void processLine(int len) {
-    //Serial.print("ProcessLine length: ");
-	//Serial.println(len);
-	
-	telegram[len] = '\n';
-    telegram[len + 1] = 0;
-    yield();		// ook iets te maken met de hardware watchdog.
-
-    bool result = decode_telegram(len + 1);
-	// result is enkel TRUE wanneer alle lijnen van een volledig telegram goed binnengekomen zijn CRC_VALID
-
-    if (result) {
-		send_data();
-		LAST_UPDATE_SENT = millis();
-    }
-
-}
-
-*/
 
 // **********************************
 // * Setup Main                     *
@@ -969,11 +855,7 @@ void setup()
     Serial.println("Swapping UART0 RX to inverted");
     Serial.flush();
 
-    // Invert the RX serialport by setting a register value, this way the TX might continue normally allowing the serial monitor to read println's
-	//// testing
-	//USC0(UART0) = USC0(UART0) | BIT(UCRXI);
     Serial.println("Serial2 port is ready to recieve.");
-
 
 }
 
@@ -996,15 +878,17 @@ void loop()
 			mqttClient.loop();
 		}
 	}
-    // test
-	// lees serial2 en schrijf naar Serial
-	long now = millis();
-
+    
+	read_p1_hardwareserial();
 	
+	
+	// lees serial2 en schrijf naar Serial
+	/*
+	long now = millis();
 	if (now - LAST_UPDATE_SENT > UPDATE_INTERVAL) {
 		read_p1_hardwareserial();
 	}
-	
+	*/
 
 	/*
 	if(Serial2.available()){

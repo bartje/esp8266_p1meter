@@ -124,7 +124,8 @@ void mqttConnect( const char *broker, const int port )
 		//mqttClient.setCallback( mqttCallback );
 
 		// Connect to the broker, using the MAC address for a MQTT client ID.
-		if( mqttClient.connect( HOSTNAME, mqtt_user, mqtt_pass ) )
+		//if( mqttClient.connect( HOSTNAME, mqtt_user, mqtt_pass ) )
+		if( mqttClient.connect( HOSTNAME ) )
 		{
 			Serial.println( "Connected to MQTT Broker." );
 			//mqttClient.subscribe( COMMAND_TOPIC );

@@ -13,10 +13,12 @@
 #define TXD2 17
 
 // Debug
-#define NO_NETWORK true
+#define NO_NETWORK false
+#define ENABLE_LOG true
+
 
 // about the software version
-const unsigned int VERSION				= 20250921;     // Versie van de software
+const unsigned int VERSION				= 20251005;     // Versie van de software
 
 // * Baud rate for hardware serial2
 #define BAUD_RATE 115200
@@ -31,10 +33,21 @@ const char* ntpServer						= "router.witje";			// NTP server to request epoch ti
 //*********/
 // P1-port
 //*********/
-#define UPDATE_INTERVAL 9500  // 1 minute
+#define UPDATE_INTERVAL 5  // in seconds
 #define P1_MAXLINELENGTH 5050
 // * Set to store received telegram
 char telegram[P1_MAXLINELENGTH];
+int counter		=	0;
+float P_tot		=	0;
+float P_tot_pos	=	0;
+float P_tot_neg	=	0;
+float VL1		=	0;
+float VL2		=	0;
+float VL3		=	0;
+float IL1		=	0;
+float IL2		=	0;
+float IL3		=	0;
+
 
 // * Set to store the data values read
 struct timestampData{
@@ -49,6 +62,9 @@ timestampData TIMESTAMP;
 // MQTT
 //*********/
 long LAST_UPDATE_SENT = 0;
-
+const char *mqtt_topic_elek					= "test/power/home/energy";
+const char *mqtt_topic_elek_inst			= "test/power/home/energy/instant";
+const char *mqtt_topic_gas					= "test/power/home/gas";
+const char *mqtt_topic_water				= "test/power/home/water";
 
 #endif  //WT32_ETH01_MQTT_WT32_ETH01_MQTT_H
