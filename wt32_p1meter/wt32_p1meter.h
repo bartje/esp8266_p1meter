@@ -15,6 +15,7 @@
 // Debug
 #define NO_NETWORK false
 #define ENABLE_LOG true
+#define PRODUCTION false
 
 
 // about the software version

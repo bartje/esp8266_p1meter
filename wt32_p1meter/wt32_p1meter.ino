@@ -54,9 +54,9 @@ DateTimeFunctions dTF;
 // * om de info vanuit de P1 poort te verzamelen
 
 // CRC check aanzetten in productie
-//PacketAccumulator accumulator(/* bufferSize */ P1_MAXLINELENGTH, /* check_crc */ true);
-PacketAccumulator accumulator(/* bufferSize */ P1_MAXLINELENGTH, /* check_crc */ false);
+PacketAccumulator accumulator(/* bufferSize */ P1_MAXLINELENGTH, /* check_crc */ PRODUCTION);
 
+//	PacketAccumulator accumulator(/* bufferSize */ P1_MAXLINELENGTH, /* check_crc */ false);
 
 using MyData = ParsedData<
     /* String */ identification,
@@ -197,12 +197,12 @@ float round_prec(double n, int prec)
     return std::round(n * pow(10, prec)) / pow(10, prec);
 }
 
-void send_data(JsonDocument jsonData, const char *topic){ // topic; payload
+void send_data(JsonDocument jsonData, const char *topic, boolean retain = false){ // topic; payload
 	
 	String payload;
 	serializeJson(jsonData, payload);
 	if (!NO_NETWORK){
-		mqttClient.publish(topic, payload.c_str());
+		mqttClient.publish(topic, payload.c_str(), retain);
 	}
 	if (ENABLE_LOG) {
 		Serial.println("*****");
@@ -212,38 +212,6 @@ void send_data(JsonDocument jsonData, const char *topic){ // topic; payload
 		Serial.println(payload.c_str());
 		Serial.println("*****");
 	}
-
-	
-	// *****************
-	// *     Elek      *
-	// *****************
-
-	// decode TIMESTAMP
-		// TIMESTAMP.timestamp = 221028213843; 2022 10 28 // 21u 38m 43s
-		// TIMESTAMP.zomeruur = true;
-		// datetime
-	
-	// float P_tot = L1_INSTANT_POWER_USAGE + L2_INSTANT_POWER_USAGE+ L3_INSTANT_POWER_USAGE - L1_INSTANT_POWER_PRODUCTION - L2_INSTANT_POWER_PRODUCTION - L3_INSTANT_POWER_PRODUCTION;
-	// float P_tot_pos = 0;
-	// float P_tot_neg = 0;
-	// if(P_tot > 0){
-	// 	P_tot_pos = abs(P_tot);
-	// } else {
-	// 	P_tot_neg = abs(P_tot);
-	// }
-
-	// JsonDocument energy;
-	// energy["time"] = epochUTC(TIMESTAMP.timestamp, TIMESTAMP.zomeruur);
-	// energy["E_tot_pos"] = CONSUMPTION_LOW_TARIF + CONSUMPTION_HIGH_TARIF;
-	// energy["E_tot_neg"] = RETURNDELIVERY_LOW_TARIF + RETURNDELIVERY_HIGH_TARIF;
-	// energy["E_tot"] = CONSUMPTION_LOW_TARIF + CONSUMPTION_HIGH_TARIF - (RETURNDELIVERY_LOW_TARIF + RETURNDELIVERY_HIGH_TARIF);
-	// energy["P_tot_pos"] = P_tot_pos;
-	// energy["P_tot_neg"] = P_tot_neg;
-	// energy["P_tot"] = P_tot;
-	// energy["VL1"] = L1_VOLTAGE;
-	// energy["VL2"] = L2_VOLTAGE;
-	// energy["VL3"] = L3_VOLTAGE;
-
 }
 
 
@@ -449,7 +417,7 @@ void read_p1_hardwareserial(){
 					elek["timePeak"] = elekPeakMonthTimestamp.epochTimestamp;
 					elek["monthPeak"] = data.active_energy_import_current_average_demand.val();
 				}
-				send_data(elek,mqtt_topic_elek);
+				send_data(elek,mqtt_topic_elek,false);
 				
 				//reset all tempvalues
 				counter = 0;
@@ -464,17 +432,17 @@ void read_p1_hardwareserial(){
 				float P_tot_inst = data.power_delivered.val() - data.power_returned.val();
 				elekInst["time"] = elekTimestamp.epochTimestamp;
 				elekInst["P_tot_inst"] = P_tot_inst;
-				send_data(elekInst,mqtt_topic_elek_inst);
+				send_data(elekInst,mqtt_topic_elek_inst,false);
 				
 				if (gasTimestamp.valid_data){
 					gas["time"] = gasTimestamp.epochTimestamp;
-					gas["verbruik"] = data.gas_delivered_be.val();
-					send_data(gas,mqtt_topic_gas);
+					gas["gas"] = data.gas_delivered_be.val();
+					send_data(gas,mqtt_topic_gas,false);
 				}
 				if (waterTimestamp.valid_data){
 					water["time"] = waterTimestamp.epochTimestamp;
-					water["verbruik"] = data.water_delivered.val();
-					send_data(water,mqtt_topic_water);
+					water["water"] = data.water_delivered.val();
+					send_data(water,mqtt_topic_water,false);
 				}
 
 
@@ -484,6 +452,36 @@ void read_p1_hardwareserial(){
     }
 }
 
+
+void publishDiscovery(String sensor_name, String device_class, String state_class, String unit, String icon, String mqtt_topic){
+	
+	String unique_id = "P1_reader_device_1_" + sensor_name;
+	JsonDocument discover;
+	discover["name"] = sensor_name;
+	discover["state_topic"] = mqtt_topic;
+	discover["unit_of_measurement"] = unit;
+	discover["icon"] = icon;
+	discover["device_class"] = device_class;
+	discover["state_class"] = state_class;
+	discover["unique_id"] = unique_id;
+	discover["value_template"] = "{{ value_json." + sensor_name + " | float }}";
+	
+	
+	//JsonObject device = discover.createNestedObject("device");
+	JsonObject device = discover["device"].to<JsonObject>();
+	device["identifiers"] = "P1_reader_device_1";
+	device["name"] = "P1 reader";
+	device["model"] = "P1 to WT32";
+	device["manufacturer"] = "Witje@Fluvius";
+	
+	String mqtt_discoverHA = "/homeassistant/sensor/" + unique_id + "/config";
+	
+	// retain op true zetten in productie
+	if (PRODUCTION)
+		send_data(discover,mqtt_discoverHA.c_str(), true);
+	else
+		send_data(discover,mqtt_discoverHA.c_str(), false);
+}
 
 // **********************************
 // * Setup Main                     *
@@ -550,11 +548,39 @@ void setup()
     //Serial1.begin(BAUD_RATE, SERIAL_8N1, SERIAL_FULL);
 	Serial2.begin(BAUD_RATE, SERIAL_8N1, RXD2, TXD2, true);		// true --> invert the signals
     Serial.println("init Serial2");
-    Serial.println("Swapping UART0 RX to inverted");
+    Serial.println("Swapping UART0 RX an TX to inverted");
     Serial.flush();
 
     Serial.println("Serial2 port is ready to recieve.");
 
+
+	// declaring all sensors to HomeAssistant
+	/*
+	
+	*/
+	// void publishDiscovery(String sensor_name, String device_class, String state_class, String unit, String icon, String mqtt_topic)
+	
+	// Elektricity
+	publishDiscovery("E_tot_pos", "energy", "total_increasing", "kWh", "mdi:transmission-tower-export", mqtt_topic_elek);
+	publishDiscovery("E_tot_neg", "energy", "total_increasing", "kWh", "mdi:transmission-tower-import", mqtt_topic_elek);
+	publishDiscovery("E_tot", "energy", "total", "kWh", "mdi:transmission-tower", mqtt_topic_elek);
+	publishDiscovery("P_tot_pos", "power", "measurement", "W", "mdi:transmission-tower-export", mqtt_topic_elek);
+	publishDiscovery("P_tot_pos", "power", "measurement", "W", "mdi:transmission-tower-import", mqtt_topic_elek);
+	publishDiscovery("P_tot", "power", "measurement", "W", "mdi:transmission-tower", mqtt_topic_elek);
+	publishDiscovery("P_tot", "power", "measurement", "W", "mdi:transmission-tower", mqtt_topic_elek_inst);
+	publishDiscovery("VL1", "voltage", "measurement", "V", "mdi:sine-wave", mqtt_topic_elek);
+	publishDiscovery("VL2", "voltage", "measurement", "V", "mdi:sine-wave", mqtt_topic_elek);
+	publishDiscovery("VL3", "voltage", "measurement", "V", "mdi:sine-wave", mqtt_topic_elek);
+	publishDiscovery("IL1", "current", "measurement", "A", "mdi:current-ac", mqtt_topic_elek);
+	publishDiscovery("IL2", "current", "measurement", "A", "mdi:current-ac", mqtt_topic_elek);
+	publishDiscovery("IL3", "current", "measurement", "A", "mdi:current-ac", mqtt_topic_elek);
+	publishDiscovery("currentPeak", "power", "measurement", "W", "mdi:transmission-tower", mqtt_topic_elek);
+	
+	// Gas
+	publishDiscovery("gas", "gas", "total_increasing", "m³", "mdi:gas-cylinder", mqtt_topic_gas);
+
+	// Water
+	publishDiscovery("gas", "water", "total_increasing", "m³", "mdi:water-cylinder", mqtt_topic_water);
 }
 
 // **********************************
