@@ -63,9 +63,9 @@ timestampData TIMESTAMP;
 // MQTT
 //*********/
 long LAST_UPDATE_SENT = 0;
-const char *mqtt_topic_elek					= "test/power/home/energy";
-const char *mqtt_topic_elek_inst			= "test/power/home/energy/instant";
-const char *mqtt_topic_gas					= "test/power/home/gas";
-const char *mqtt_topic_water				= "test/power/home/water";
+const char *mqtt_topic_elek					= "test/power/home/p1/energy";
+const char *mqtt_topic_elek_inst			= "test/power/home/p1/energy/instant";
+const char *mqtt_topic_gas					= "test/power/home/p1/gas";
+const char *mqtt_topic_water				= "test/power/home/p1/water";
 
 #endif  //WT32_ETH01_MQTT_WT32_ETH01_MQTT_H
