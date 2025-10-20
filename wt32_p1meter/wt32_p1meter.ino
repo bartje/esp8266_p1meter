@@ -90,7 +90,7 @@ using MyData = ParsedData<
 	/* FixedValue */ active_energy_import_current_average_demand,
 	/*TimestampedFixedValue*/ active_energy_import_maximum_demand_running_month,
 	/*TimestampedFixedValue*/ gas_delivered_be,
-	/*TimestampedFixedValue*/water_delivered>;
+	/*TimestampedFixedValue*/ water_delivered>;
 
 
 	// * Initiate WIFI client
