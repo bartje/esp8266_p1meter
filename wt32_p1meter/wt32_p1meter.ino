@@ -414,8 +414,9 @@ void read_p1_hardwareserial(){
 				
 				elek["currentPeak"] = data.active_energy_import_current_average_demand.val();
 				if(elekPeakMonthTimestamp.valid_data){
-					elek["timeMonthPeak"] = elekPeakMonthTimestamp.epochTimestamp;
-					elek["monthPeak"] = data.active_energy_import_current_average_demand.val();
+					JsonObject capac = elek["capac"].to<JsonObject>();
+					capac["timeMonthPeak"] = elekPeakMonthTimestamp.epochTimestamp;
+					capac["monthPeak"] = data.active_energy_import_maximum_demand_running_month.val();
 				}
 				send_data(elek,mqtt_topic_elek,false);
 				
