@@ -15,11 +15,11 @@ PubSubClient mqttClient( ethClient );
 
 
 const unsigned int BROKER_PORT        = 1883;                                        // The port to use when connecting to the MQTT broker.
-//const char *BROKER_ADDRESS            = "mqtt.witje";                               // The network address of the MQTT broker.  This can be an IP address or a hostname.
-const char *BROKER_ADDRESS            = "mqtt.apekot";                               // The network address of the MQTT broker.  This can be an IP address or a hostname.
+const char *BROKER_ADDRESS            = "mqtt.witje";                               // The network address of the MQTT broker.  This can be an IP address or a hostname.
+//const char *BROKER_ADDRESS            = "mqtt.apekot";                               // The network address of the MQTT broker.  This can be an IP address or a hostname.
 
 //HA
-const char *mqtt_topic					= "test/power";
+//const char *mqtt_topic					= "test/power";
 const char *mqtt_user					= "power";
 const char *mqtt_pass					= "power";
 //const char *COMMAND_TOPIC             = "wt32eth01/commands";              // The MQTT topic where the IP address will be published to.

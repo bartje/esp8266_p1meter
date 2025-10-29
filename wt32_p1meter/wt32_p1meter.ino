@@ -54,7 +54,7 @@ DateTimeFunctions dTF;
 // * om de info vanuit de P1 poort te verzamelen
 
 // CRC check aanzetten in productie
-PacketAccumulator accumulator(/* bufferSize */ P1_MAXLINELENGTH, /* check_crc */ PRODUCTION);
+PacketAccumulator accumulator(/* bufferSize */ P1_MAXLINELENGTH, /* check_crc */ true);
 
 //	PacketAccumulator accumulator(/* bufferSize */ P1_MAXLINELENGTH, /* check_crc */ false);
 
@@ -475,7 +475,7 @@ void publishDiscovery(String sensor_name, String device_class, String state_clas
 	device["model"] = "P1 to WT32";
 	device["manufacturer"] = "Witje@Fluvius";
 	
-	String mqtt_discoverHA = "/homeassistant/sensor/" + unique_id + "/config";
+	String mqtt_discoverHA = "homeassistant/sensor/" + unique_id + "/config";
 	
 	// retain op true zetten in productie
 	if (PRODUCTION)

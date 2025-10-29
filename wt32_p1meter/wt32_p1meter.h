@@ -19,7 +19,7 @@
 
 
 // about the software version
-const unsigned int VERSION				= 20251005;     // Versie van de software
+const unsigned int VERSION				= 20251029;     // Versie van de software
 
 // * Baud rate for hardware serial2
 #define BAUD_RATE 115200
@@ -65,7 +65,7 @@ timestampData TIMESTAMP;
 long LAST_UPDATE_SENT = 0;
 const char *mqtt_topic_elek					= "power/home/p1/energy";
 const char *mqtt_topic_elek_inst			= "power/home/p1/energy/instant";
-const char *mqtt_topic_gas					= "power/home/p1/gas";
-const char *mqtt_topic_water				= "power/home/p1/water";
+const char *mqtt_topic_gas					= "home/verbruik/p1/gas";
+const char *mqtt_topic_water				= "home/verbruik/p1/water";
 
 #endif  //WT32_ETH01_MQTT_WT32_ETH01_MQTT_H
