@@ -401,9 +401,9 @@ void read_p1_hardwareserial(){
 				} else {
 					P_tot_neg = abs(P_tot);
 				}
-				elek["P_tot_pos"] = round_prec(P_tot_pos/counter,3);
-				elek["P_tot_neg"] = round_prec(P_tot_neg/counter,3);
-				elek["P_tot"] = round_prec(P_tot/counter,3);
+				elek["P_tot_pos"] = 1000 * round_prec(P_tot_pos/counter,3);
+				elek["P_tot_neg"] = 1000 * round_prec(P_tot_neg/counter,3);
+				elek["P_tot"] = 1000 * round_prec(P_tot/counter,3);
 				
 				elek["VL1"] = round_prec(VL1/counter,1);
 				elek["VL2"] = round_prec(VL2/counter,1);
@@ -432,7 +432,7 @@ void read_p1_hardwareserial(){
 
 				float P_tot_inst = data.power_delivered.val() - data.power_returned.val();
 				elekInst["time"] = elekTimestamp.epochTimestamp;
-				elekInst["P_tot_inst"] = P_tot_inst;
+				elekInst["P_tot_inst"] = 1000 * P_tot_inst;
 				send_data(elekInst,mqtt_topic_elek_inst,false);
 				
 				if (gasTimestamp.valid_data){
@@ -568,20 +568,20 @@ void setup()
 	publishDiscovery("P_tot_pos", "power", "measurement", "W", "mdi:transmission-tower-export", mqtt_topic_elek);
 	publishDiscovery("P_tot_pos", "power", "measurement", "W", "mdi:transmission-tower-import", mqtt_topic_elek);
 	publishDiscovery("P_tot", "power", "measurement", "W", "mdi:transmission-tower", mqtt_topic_elek);
-	publishDiscovery("P_tot", "power", "measurement", "W", "mdi:transmission-tower", mqtt_topic_elek_inst);
+	publishDiscovery("P_tot_inst", "power", "measurement", "W", "mdi:transmission-tower", mqtt_topic_elek_inst);
 	publishDiscovery("VL1", "voltage", "measurement", "V", "mdi:sine-wave", mqtt_topic_elek);
 	publishDiscovery("VL2", "voltage", "measurement", "V", "mdi:sine-wave", mqtt_topic_elek);
 	publishDiscovery("VL3", "voltage", "measurement", "V", "mdi:sine-wave", mqtt_topic_elek);
 	publishDiscovery("IL1", "current", "measurement", "A", "mdi:current-ac", mqtt_topic_elek);
 	publishDiscovery("IL2", "current", "measurement", "A", "mdi:current-ac", mqtt_topic_elek);
 	publishDiscovery("IL3", "current", "measurement", "A", "mdi:current-ac", mqtt_topic_elek);
-	publishDiscovery("currentPeak", "power", "measurement", "W", "mdi:transmission-tower", mqtt_topic_elek);
+	publishDiscovery("currentPeak", "power", "measurement", "kW", "mdi:transmission-tower", mqtt_topic_elek);
 	
 	// Gas
 	publishDiscovery("gas", "gas", "total_increasing", "m³", "mdi:gas-cylinder", mqtt_topic_gas);
 
 	// Water
-	publishDiscovery("gas", "water", "total_increasing", "m³", "mdi:water-cylinder", mqtt_topic_water);
+	publishDiscovery("water", "water", "total_increasing", "m³", "mdi:water", mqtt_topic_water);
 }
 
 // **********************************

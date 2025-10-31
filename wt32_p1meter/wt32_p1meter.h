@@ -14,12 +14,12 @@
 
 // Debug
 #define NO_NETWORK false
-#define ENABLE_LOG true
-#define PRODUCTION false
+#define ENABLE_LOG false
+#define PRODUCTION true
 
 
 // about the software version
-const unsigned int VERSION				= 20251029;     // Versie van de software
+const unsigned int VERSION				= 20251031;     // Versie van de software
 
 // * Baud rate for hardware serial2
 #define BAUD_RATE 115200
