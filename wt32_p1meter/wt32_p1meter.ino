@@ -638,27 +638,3 @@ void loop()
 	
 }
 
-/*
-code for heater in mqtt homeassistant
-{
-  "name": "My Water Heater",
-  "unique_id": "water_heater_001",
-  "state_topic": "home/water_heater/state",
-  "command_topic": "home/water_heater/set",
-  "temperature_command_topic": "home/water_heater/temperature/set",
-  "temperature_state_topic": "home/water_heater/temperature/state",
-  "current_temperature_topic": "home/water_heater/current_temperature",
-  "mode_command_topic": "home/water_heater/mode/set",
-  "mode_state_topic": "home/water_heater/mode/state",
-  "modes": ["off", "eco", "performance"],
-  "min_temp": 40,
-  "max_temp": 75,
-  "temp_step": 0.5,
-  "device": {
-    "identifiers": ["water_heater_001"],
-    "name": "My Water Heater",
-    "model": "WH-Model-X",
-    "manufacturer": "WaterTech"
-  }
-}
-*/
