@@ -438,6 +438,7 @@ void read_p1_hardwareserial(){
 				if (gasTimestamp.valid_data){
 					gas["time"] = gasTimestamp.epochTimestamp;
 					gas["gas"] = data.gas_delivered_be.val();
+					gas["E_gas"] = round_prec(data.gas_delivered_be.val() * factor_gas,3);
 					send_data(gas,mqtt_topic_gas,false);
 				}
 				if (waterTimestamp.valid_data){
@@ -579,6 +580,7 @@ void setup()
 	
 	// Gas
 	publishDiscovery("gas", "gas", "total_increasing", "m³", "mdi:gas-cylinder", mqtt_topic_gas);
+	publishDiscovery("E_gas", "energy", "total_increasing", "kWh", "mdi:gas-burner", mqtt_topic_gas);
 
 	// Water
 	publishDiscovery("water", "water", "total_increasing", "m³", "mdi:water", mqtt_topic_water);
@@ -635,3 +637,28 @@ void loop()
 	*/
 	
 }
+
+/*
+code for heater in mqtt homeassistant
+{
+  "name": "My Water Heater",
+  "unique_id": "water_heater_001",
+  "state_topic": "home/water_heater/state",
+  "command_topic": "home/water_heater/set",
+  "temperature_command_topic": "home/water_heater/temperature/set",
+  "temperature_state_topic": "home/water_heater/temperature/state",
+  "current_temperature_topic": "home/water_heater/current_temperature",
+  "mode_command_topic": "home/water_heater/mode/set",
+  "mode_state_topic": "home/water_heater/mode/state",
+  "modes": ["off", "eco", "performance"],
+  "min_temp": 40,
+  "max_temp": 75,
+  "temp_step": 0.5,
+  "device": {
+    "identifiers": ["water_heater_001"],
+    "name": "My Water Heater",
+    "model": "WH-Model-X",
+    "manufacturer": "WaterTech"
+  }
+}
+*/

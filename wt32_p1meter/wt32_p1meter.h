@@ -49,6 +49,7 @@ float IL1		=	0;
 float IL2		=	0;
 float IL3		=	0;
 
+float factor_gas	=	11.3716;					// Omrekenfactor: 11,3716 kWh/m3
 
 // * Set to store the data values read
 struct timestampData{
